@@ -1,7 +1,7 @@
 % A technical part, describing what you did and how/why it works. Imagine that you are writing for another student who has not taken this unit: they should be able, after reading your technical part, to both reproduce your attacks by following the steps you give and to have a basic understanding of what is happening.
 
 \fakesection{About Format Strings}
-In the C language, the \textit{printf()} family of printing functions interpret what is known as \textit{format strings} to provide a way of combining a string literal with zero or more other types of data.
+In the C language, the \emph{printf()} family of printing functions interpret what is known as \emph{format strings} to provide a way of combining a string literal with zero or more other types of data.
 
 \vgap\begin{lstlisting}[frame=single]
 int printf(const char * restrict format, ...);
@@ -10,12 +10,12 @@ int printf(const char * restrict format, ...);
 printf("Hello %s, this is printf.\n", name);
 \end{lstlisting}
 
-The use of format strings range widely from the simplest Hello World program (albeit with no substitution) to some of the most crucial and privileged programs in a system - even the Unix kernel has its own \textit{printk()} function. The format string mechanism has considerable impact on many systems and therefore every programmer should know how to use it safely.
+The use of format strings range widely from the simplest Hello World program (albeit with no substitution) to some of the most crucial and privileged programs in a system - even the Unix kernel has its own \emph{printk()} function. The format string mechanism has considerable impact on many systems and therefore every programmer should know how to use it safely.
 
-Some of the most commonly used substitutions are: \textit{\%d}, \textit{\%f}, and \textit{\%s}, which stand for signed integer, float, and null-terminate string, respectively. For a full description on \textit{printf()} substitutions, the reader is referred to [C printf manual].
+Some of the most commonly used substitutions are: \emph{\%d}, \emph{\%f}, and \emph{\%s}, which stand for signed integer, float, and null-terminate string, respectively. For a full description on \emph{printf()} substitutions, the reader is referred to [C printf manual].
 
 \fakesection{The Problem with Format Strings}
-The argument list of \textit{printf()} is variable in length, and the programmer is responsible for providing as many substitution variables as substitution tokens they have requested in the format. This responsibility is often mishandled, due to factors such as carelessness, ignoring compiler warnings, or just not knowing that it is an issue. Below we demonstrate a program that compromises itself simply by using too many \textit{\%s} tokens:
+The argument list of \emph{printf()} is variable in length, and the programmer is responsible for providing as many substitution variables as substitution tokens they have requested in the format. This responsibility is often mishandled, due to factors such as carelessness, ignoring compiler warnings, or just not knowing that it is an issue. Below we demonstrate a program that compromises itself simply by using too many \emph{\%s} tokens:
 
 \vgap
 \begin{lstlisting}[frame=single]
