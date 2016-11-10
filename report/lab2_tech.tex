@@ -7,26 +7,28 @@
 %what we did
 
 %how/why did what we did work
-\paragraph {Task 1} Buffer overflow exploit
-\\
-\tab The first task of the second lab ask us to exploit the buffer overflow of function \emph{bof} in the provided vulnerable program. This is a classic technique of overrunning a local buffer in a function stack frame to overwrite the saved return address. When the function eventually tries to return the execution flow is diverted to the overwritten address which could allow an attacker to execute arbitrary code with the privileges  of the exploited process. \\
-\tab To create this exploit our first goal was finding the offset in our input that overwrites \emph{bof}'s return address. This means finding the beginning of the overflown buffer in relation to the function's stack frame. By disassembling the \emph{stack-root} program we find in instruction 6 that this is \emph{-0x20(\%ebp)} or 32 byte before \emph{\%ebp}. This instruction sets the buffer address as an argument to \emph{strcpy()}. After these 32 bytes the stack frame contains 4 bytes of the saved \emph{\%ebp} followed by 4 bytes of the return address.
-\begin{lstlisting}
+\fakesection{Buffer overflow exploit}
+The first task of the second lab ask us to exploit the buffer overflow of function \emph{bof} in the provided vulnerable program. This is a classic technique of overrunning a local buffer in a function stack frame to overwrite the saved return address. When the function eventually tries to return the execution flow is diverted to the overwritten address which could allow an attacker to execute arbitrary code with the privileges  of the exploited process.
+
+To create this exploit our first goal was finding the offset in our input that overwrites \emph{bof}'s return address. This means finding the beginning of the overflown buffer in relation to the function's stack frame. By disassembling the \emph{stack-root} program we find in instruction 6 that this is \emph{-0x20(\%ebp)} or 32 byte before \emph{\%ebp}. This instruction sets the buffer address as an argument to \emph{strcpy()}. After these 32 bytes the stack frame contains 4 bytes of the saved \emph{\%ebp} followed by 4 bytes of the return address.
+
+\vgap\begin{lstlisting}[frame=single]
 08048484 <bof>:
- 8048484:	55                   	push   %ebp
- 8048485:	89 e5                	mov    %esp,%ebp
- 8048487:	83 ec 38             	sub    $0x38,%esp
- 804848a:	8b 45 08             	mov    0x8(%ebp),%eax
- 804848d:	89 44 24 04          	mov    %eax,0x4(%esp)
- 8048491:	8d 45 e0             	lea    -0x20(%ebp),%eax
- 8048494:	89 04 24             	mov    %eax,(%esp)
- 8048497:	e8 e4 fe ff ff       	call   8048380 <strcpy@plt>
- 804849c:	b8 01 00 00 00       	mov    $0x1,%eax
- 80484a1:	c9                   	leave  
- 80484a2:	c3                   	ret    
+8048484:	55                   	push   %ebp
+8048485:	89 e5                	mov    %esp,%ebp
+8048487:	83 ec 38             	sub    $0x38,%esp
+804848a:	8b 45 08             	mov    0x8(%ebp),%eax
+804848d:	89 44 24 04          	mov    %eax,0x4(%esp)
+8048491:	8d 45 e0             	lea    -0x20(%ebp),%eax
+8048494:	89 04 24             	mov    %eax,(%esp)
+8048497:	e8 e4 fe ff ff       	call   8048380 <strcpy@plt>
+804849c:	b8 01 00 00 00       	mov    $0x1,%eax
+80484a1:	c9                   	leave
+80484a2:	c3                   	ret
 \end{lstlisting}
-\tab We make an exploit that consists of 36 junk bytes 0xAA followed by the target address in little-endian followed by the 24 bytes of provided shellcode. For successful execution the target address needs to point at the beginning of the shellcode. We find this address by executing the \emph{stack-root} program in \emph{gdb} and setting the \emph{ret} instruction of \emph{bof} as a breakpoint. We take note of \emph{\%esp} which in our build is \emph{0xBFFFF4BC}. At that instruction \emph{\%esp} would point to the return address on the stack and if the shellcode is located just after that return address, a pointer to it would be 4 bytes higher than the obtained value - \emph{0xBFFFF4C0}. Using that as our target return address we successfully execute the exploit in \emph{gdb}. Since running the program outside \emph{gdb} the stack has a slight offset this exploit fails. To make our exploit resistant to stack offset variations we prepend the shellcode with 256 bytes of \emph{nop} instructions and increment the return address by 128 setting it to \emph{0xBFFFF540}. This gives the exploit operability when the stack offset is within 128 bytes of the stack offset under \emph{gdb}. \\
-\paragraph {Task 2} Defence mechanisms
-\\
-\tab The first defence technique to consider against this exploit is Address Space Layout Randomization or ASLR. This is an Operating System security feature implemented by the program loader that randomises the allocations for the heap, stack and loaded libraries. It does not prevent the actual buffer overflow but can mitigate it's exploitation potential. Since the crafted exploit needs to know the approximate location of the shellcode and that is located on the now randomised stack. With ASLR we can no longer obtain the stack location through seeing the memory maps of a single program instance because different executions allocate the stack at random location. By trying enough times it is possible to get successful exploitation if the random stack coincides with the observed stack location on creating the exploit. This is more likely to be feasible on 32-bit environments as they only offer 16 bits of randomisation which is significantly smaller than the available randomisation on 64-bit platforms. However there exist several methods to bypass this protection. A popular one is using the executable code and global variable space  which is the remaining known data fixed in the executable's address space. This is a very powerful technique but can be preventing by adopting compilation of position independent code (PIC). With PIC even the executable code's addresses can be randomised. This leaves the attacker only with finding an address leak as a viable attack on ASLR. If however such an information leak exists then it renders ASLR completely ineffective as the attacker can compute the exact offset of the leaked segment.\\
+
+We make an exploit that consists of 36 junk bytes 0xAA followed by the target address in little-endian followed by the 24 bytes of provided shellcode. For successful execution the target address needs to point at the beginning of the shellcode. We find this address by executing the \emph{stack-root} program in \emph{gdb} and setting the \emph{ret} instruction of \emph{bof} as a breakpoint. We take note of \emph{\%esp} which in our build is \emph{0xBFFFF4BC}. At that instruction \emph{\%esp} would point to the return address on the stack and if the shellcode is located just after that return address, a pointer to it would be 4 bytes higher than the obtained value - \emph{0xBFFFF4C0}. Using that as our target return address we successfully execute the exploit in \emph{gdb}. Since running the program outside \emph{gdb} the stack has a slight offset this exploit fails. To make our exploit resistant to stack offset variations we prepend the shellcode with 256 bytes of \emph{nop} instructions and increment the return address by 128 setting it to \emph{0xBFFFF540}. This gives the exploit operability when the stack offset is within 128 bytes of the stack offset under \emph{gdb}.
+
+\fakesection{Defence mechanisms}
+The first defence technique to consider against this exploit is Address Space Layout Randomization or ASLR. This is an Operating System security feature implemented by the program loader that randomises the allocations for the heap, stack and loaded libraries. It does not prevent the actual buffer overflow but can mitigate it's exploitation potential. Since the crafted exploit needs to know the approximate location of the shellcode and that is located on the now randomised stack. With ASLR we can no longer obtain the stack location through seeing the memory maps of a single program instance because different executions allocate the stack at random location. By trying enough times it is possible to get successful exploitation if the random stack coincides with the observed stack location on creating the exploit. This is more likely to be feasible on 32-bit environments as they only offer 16 bits of randomisation which is significantly smaller than the available randomisation on 64-bit platforms. However there exist several methods to bypass this protection. A popular one is using the executable code and global variable space  which is the remaining known data fixed in the executable's address space. This is a very powerful technique but can be preventing by adopting compilation of position independent code (PIC). With PIC even the executable code's addresses can be randomised. This leaves the attacker only with finding an address leak as a viable attack on ASLR. If however such an information leak exists then it renders ASLR completely ineffective as the attacker can compute the exact offset of the leaked segment.\\
 \tab Stack Protector \cite{Stackgua58} \\
