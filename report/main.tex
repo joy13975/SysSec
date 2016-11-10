@@ -1,20 +1,34 @@
-\documentclass[12pt, onecolumn]{IEEEtran}
+\documentclass[12pt, onecolumn]{article}
 
 \usepackage[margin=25mm]{geometry}
-\newcommand\tab[1][1cm]{\hspace*{#1}}
 \setlength{\parindent}{0pt}
+\setlength{\parskip}{12pt}
 
 %break url line in references
 \usepackage[hyphens]{url}
 \usepackage{hyperref}
 \hypersetup{breaklinks=true}
 \urlstyle{same}
-
-\usepackage{cite}
-
-\usepackage{array}
-
 \hyphenation{op-tical net-works semi-conduc-tor intro-duction high-light}
+
+%syntax highlighting
+\usepackage{cite}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{color}
+\lstset{language=C,
+                showstringspaces=false,
+                basicstyle=\ttfamily,
+                keywordstyle=\color{blue}\ttfamily,
+                stringstyle=\color{red}\ttfamily,
+                commentstyle=\color{green}\ttfamily,
+                morecomment=[l][\color{magenta}]{\#}
+}
+
+%commands
+\newcommand\tab[1][1cm]{\hspace*{#1}}
+\newcommand\vgap{\vspace{0.2cm}}
+\newcommand\fakesection[1]{\textbf{#1}\newline}
 
 \begin{document}
 
@@ -30,6 +44,7 @@ Contribution: \\
 \\
 Overal contribution: cy13308 50\%, rz13310 50\%
 \newpage
+
 
 \section{Overview}
 \input{overview}

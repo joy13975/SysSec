@@ -1,8 +1,42 @@
 % A technical part, describing what you did and how/why it works. Imagine that you are writing for another student who has not taken this unit: they should be able, after reading your technical part, to both reproduce your attacks by following the steps you give and to have a basic understanding of what is happening.
 
-%short intro on format strings
+\fakesection{About Format Strings}
+In the C language, the \textit{printf()} family of printing functions interpret what is known as \textit{format strings} to provide a way of combining a string literal with zero or more other types of data.
 
-%what could go wrong
+\vgap
+\begin{lstlisting}[frame=single]
+int printf(const char * restrict format, ...);
+\end{lstlisting}
+\begin{lstlisting}[frame=single]
+printf("Hello %s, this is printf.\n", name);
+\end{lstlisting}
+
+The use of format strings range widely from the simplest Hello World program (albeit with no substitution) to some of the most crucial and privileged programs in a system - even the Unix kernel has its own \textit{printk()} function. The format string mechanism has considerable impact on many systems and therefore every programmer should know how to use it safely.
+
+Some of the most commonly used substitutions are: \textit{\%d}, \textit{\%f}, and \textit{\%s}, which stand for signed integer, float, and null-terminate string, respectively. For a full description on \textit{printf()} substitutions, the reader is referred to [C printf manual].
+
+\fakesection{The Problem with Format Strings}
+The argument list of \textit{printf()} is variable in length, and the programmer is responsible for providing as many substitution variables as substitution tokens they have requested in the format. This responsibility is often mishandled, due to factors such as carelessness, ignoring compiler warnings, or just not knowing that it is an issue. Below we demonstrate a program that compromises itself simply by using too many \textit{\%s} tokens:
+
+\vgap
+\begin{lstlisting}[frame=single]
+const char *password = "mypassword";
+const char *name = "John";
+printf("Hello %s! %s, %s, %s, %s, %s, %s\n", name);
+\end{lstlisting}
+
+By running this \textit{made up example} on the SEED virtual machine, we get:
+
+\vgap
+\begin{lstlisting}[frame=single]
+Hello John! |M, ??[Í??, U??WVS? ?, (null), mypassword, John
+\end{lstlisting}
+
+As can be seen, the password variable (with the value "mypassword") is exposed to the user. Of course, this is very poor coding to begin with, and the number of \textit{\%s} tokens is dramatic. However, it serves to show that information can be exposed unintentionally due to improper use of format strings.
+
+This vulnerability exists because the format string mechanism does not check for extraneous substitution tokens (although any modern compiler will complain about it). The format parsing look continues taking substitution tokens and reading up the stack:
+
+
 
 %what we did
 
