@@ -108,7 +108,7 @@ for i in range(4):
 
 #write arbitrary data into secrets[1]
 print "---------------------------------------------------------------------"
-write_val = 0xde
+write_val = 0x77
 print "Part 1c/d) Write a value (" + '0x{:02x}'.format(write_val) + ") to secret[1]"
 p, _, secret1_addr = run(True)
 secret1_hex_le = struct.pack('<I', secret1_addr)

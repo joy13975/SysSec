@@ -1,13 +1,15 @@
 % A reflective part, in which you critically reflect on the circumstances (both technical and organisational) that can give rise to the relevant vulnerabilities and potential mitigations. This can include e.g. mention of real instances of these attacks that you have researched, comparison to other attacks, discussion of relevant standards and recommendations (CERT, OWASP etc.). You can also discuss topics relating to the vulnerablities that you exploited, including: their potential risk and impact in real systems; why they (still) exist; which straightforward attempts at mitigation do not work and why not; how you would sucessfully reduce or eliminate these vulnerabilities.
 
-%Is this exploit still relevant today and why/why not?
 %Cite occurences that brought people's attention to the exploit
+Format string bugs were first reported in 1989 \cite{Miller1990}, and gained more public attention a decade after when a security audit of the ProFTPD daemon unveiled the attack \cite{tymm1999}. Today, it has been widely documented \cite{fsa_owasp, Weitz2014, Shankar2001, cowan2002, arbaugh1997automated, scut2001}. The Common Weakness Enumeration dictionary keeps only six records of real incidents where format strings were exploited \cite{fsa_cwe}, while Kilic et al counted at least a dozen per year up to 2013 \cite{Kilic2015}.
+
+%Is this exploit still relevant today and why/why not?
+%Best practices to mitigate the vulnerability
+Format string attacks are alive because of both the mechanism of format strings itself, and programmers' laziness or ignorance. On one hand, since the \emph{printf()} family of functions are very well known and do not change over time, compilers could enforce a failure when substitution tokens and substitution variables mismatch (i.e. perform compile time lexical analysis \cite{alanpscan}). Another method is to implement type-checking as suggested by \cite{Weitz2014}. Although these methods reduce programming freedom by a little (e.g. no overloading of \emph{printf()} with single argument), the gain in security is definitely worth it.
+
+On the other hand, good coding practice should be propagated from an early stage in a programmer's learning. In fact, most formal education do go into details on such "mundane" programming utilities. It would go a long way with a simple demonstration that \emph{printf(input)} is exploitable, while \emph{printf("\%s", input)} is not.
 
 %Are there new problems relating to this exploit today?
 %Cite potential risks to real systems and what can be done about it
 
 %Introduce related vulnerabilities or variants for research points
-
-%Finally, close with best practices to mitigate the vulnerability
-%Explain a simple method that doesn't work perfectly
-%Explain a standard way to eliminate/minimise the risk of the vulnerability

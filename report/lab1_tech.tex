@@ -33,7 +33,7 @@ printf(user_input);
 
 If the user enters a valid format string, it will be faithfully parsed by \emph{printf()} even though no substitution variables were supplied. This means that instead of  stopping when there are no more substitution variables to consume, \emph{printf()} continues accessing stack data until all tokens are respected.
 
-In the following sections, we use \emph{formatstring.c} to demonstrate how the format string vulnerability can lead to leakage and overwrite of important data. \emph{formatstr-root} is the set-uid version of \emph{formatstring}. This document also comes with two auto-exploit scripts written in Python: \emph{cwk1\_p1.py}, and \emph{cwk1\_p2.py}.2.
+In the following sections, we use \emph{formatstring.c} to demonstrate how the format string vulnerability can lead to leakage and overwrite of important data. The set-uid version of the \emph{formatstring} executable, \emph{formatstr-root}, is used. This document also comes with two Python scripts: \emph{cwk1\_p1.py}, and \emph{cwk1\_p2.py}, which automatically execute exploits documented herein.
 
 \subsection{Task 1}
 \subsubsection{Part (a) Crash the Program}
@@ -180,13 +180,11 @@ The new secrets:      0x44 -- 0x77
 \end{minipage}
 
 \subsection{Task 2}
-In Task 2, \emph{formatstring.c} is stripped of the integer input. This effectively forbids the setting of the address as practiced in Task 1, and left the format string to be the only interaction with the program. While this does not affect the payload used to crash the program, parts (b), (c), and (d) require a new method of getting an address to secret[1].
+In Task 2, the integer input is removed from \emph{formatstring.c}. This forbids setting the address using the integer input as practiced in Task 1, and left the format string to be the only interaction with the program. While this does not affect the payload used to crash the program, parts (b), (c), and (d) require a new method of getting an address to secret[1].
 
-Since the \emph{user\_input} char array is on the stack, it should be possible to access it via an indexed substitution token. In \lstref{lst:l1_t2_insp}, we inspected the stack again and found that \emph{user\_input} was the tenth argument ("RIPP" translates to 0x50504952 in hex).
+Since the \emph{user\_input} char array is on the stack, it should be possible to access it via an indexed substitution token. In \lstref{lst:l1_t2_insp}, we inspect the stack again and find that \emph{user\_input} was the tenth argument ("RIPP" translates to 0x50504952 in hex). After locating the "scratch pad" argument, we convert the address of secret[1] to escaped bytes and embed them in the format string in little-endian order.
 
-After locating the "scratch pad" argument, we converted the address of secret[1] to escaped bytes and embeded them in the format string in little-endian order. \lstref{lst:l1_t2_le_pb} demonstrates this, along with the payload that printed out the first character of the pointed address. The result is the same as Task 1: 'U' (=\emph{0x55}). Other bytes are read by repeating the process with different offsets; their outputs are ommitted here since they are all null.
-
-Finally, after applying the same technique to create the address of secret[1] in the first four bytes of \emph{user\_input}, the second half of the payload used in Task 1 part (d) can be reused. Parts (c) and (d) are achieved as shown in \lstref{lst:l1_t2_le_pcd}.
+\lstref{lst:l1_t2_le_pb} demonstrates the delivery of escaped bytes through \emph{echo -e}. The payload prints out the first byte of the pointed address in ASCII. The result is the same as Task 1: 'U' (=\emph{0x55}); ther bytes are ommitted here since they are all null. This completes part (b). Finally, by using the same principle as the Task 1 part (d), we are able to wrtie an arbitrary value to the address of secret[1], effectively changing its value (\lstref{lst:l1_t2_le_pcd}).
 
 \begin{minipage}{\linewidth}
 \begin{lstlisting}[caption={Stack inspection to find the start of user\_input},
@@ -208,35 +206,31 @@ RIPPAAAA,0xbffff678,0x8,0xb7eb8309,0xbffff69f,0xbffff69e,
 label={lst:l1_t2_le_pb},
 language=,
 frame=single]
+echo -e '\x24\xb0\x04\x08<%10$.1s>' | ./formatstr-no-int-root
 ...
-secret[1]'s address is 0x 804b024 (on heap)
-Please enter a string
-\x24\xb0\x04\x08<%10$.1s>
 $<U>
-...
+The original secrets: 0x44 -- 0x55
+The new secrets:      0x44 -- 0x55
 \end{lstlisting}
 \end{minipage}
 
 \begin{minipage}{\linewidth}
-\begin{lstlisting}[caption={Writing value 0xde to secret{$[1]$}},
+\begin{lstlisting}[caption={Setting secret{$[1]$} to 0x77},
 label={lst:l1_t2_le_pcd},
 language=,
 frame=single]
+echo -e '\x24\xb0\x04\x08%119.0s%10$n' | ./formatstr-no-int-root
 ...
-secret[1]'s address is 0x 804b024 (on heap)
-Please enter a string
-\x24\xb0\x04\x08%218.0s%10$n
-$
 The original secrets: 0x44 -- 0x55
-The new secrets:      0x44 -- 0xde
+The new secrets:      0x44 -- 0x77
 \end{lstlisting}
 \end{minipage}
 
 \subsection{Task 3}
 \subsubsection{Part (a) Redo Task 2 with ASLR turned on}
-When ASLR is turned on, we see that the payloads documented in Task 2 fail about half of the time. After some analysis, we identified that some bytes were not being delivered properly to the memory as raw bytes. For example, \emph{0x09} (tab, or '{\textbackslash}t'), gets interpreted and removed by \emph{printf()} and does not set the memory correctly. These "bad bytes" from ASLR's address randomisation seem to be the culprit causing the payload failures.
+When address randomisation is turned on, we observe that bytes such as tab (\emph{0x09}) and spaces (\emph{0x20}), amongst a number of others, are now becoming part of the address of secret[1]. These bytes cause \emph{scanf()} to break the input, preventing the payloads from working for certain addresses.
 
-To circumvent this, we dropped the byte escaping method and attempted to set the address using the "space-generator" payload, "\%$<$val$>$.0s", followed by a \emph{\%n}. Unfortunately, this took way too long as the terminal kept on printing spaces to the size of the target address (hundreds of millions). Futher constraints in time meant that we were unable to find a complete solution on this part.
+To circumvent this, we need a new method of setting an arbitrary address that does not involve escaped bytes. One possibility is the "space-generator" payload, "\%$<$val$>$.0s", followed by a \emph{\%n}. Unfortunately, this took a long time as the terminal kept on printing spaces to the size of the target address (hundreds of millions). We have more ideas in mind but due to time constraints, these have not been implemented.
 
 \subsubsection{Part (b) Automate Task 2 (b)}
-As mentioned earlier, this document comes with two solution files written in Python: \emph{cwk1\_p1.py} and \emph{cwk1\_p2.py}. Each of them automatically execute all of the exploits in Task 1 and Task 2 respectively. The code uses \emph{pexpect}. It parses the addresses printed by \emph{formatstring} and automatically re-establishes the correct "scratch pad" argument.
+As mentioned earlier, this document comes with two Python scrtips: \emph{cwk1\_p1.py} and \emph{cwk1\_p2.py}. Each of them automatically execute all of the exploits in Task 1 and Task 2 respectively. The code uses \emph{pexpect}, and parses the addresses printed by \emph{formatstring}.
