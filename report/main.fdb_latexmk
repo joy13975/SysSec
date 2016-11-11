@@ -1,12 +1,12 @@
 # Fdb version 3
-["bibtex main"] 1478885866 "main.aux" "main.bbl" "main" 1478885867
+["bibtex main"] 1478887041 "main.aux" "main.bbl" "main" 1478887042
   "/usr/local/texlive/2016basic/texmf-dist/bibtex/bst/IEEEtran/IEEEtran.bst" 1440712899 57748 7c8250ecf02814ce6ddc0cdbb63df1dd ""
-  "main.aux" 1478885867 7813 5b4da72ad0678371501a9badd4f90551 ""
+  "main.aux" 1478887042 7813 7a479be42203ea129a5552aa1882fd91 ""
   "main.bcf" 0 -1 0 ""
   "refs.bib" 1478884883 6101 f9df3f8e177a4eb7fbdb70699428231b ""
   (generated)
   "main.bbl"
-["pdflatex"] 1478885866 "main.tex" "main.pdf" "main" 1478885867
+["pdflatex"] 1478887041 "main.tex" "main.pdf" "main" 1478887042
   "/usr/local/texlive/2016basic/texmf-dist/fonts/tfm/public/cm/cmbx10.tfm" 1136768653 1328 c834bbb027764024c09d3d2bf908b5f0 ""
   "/usr/local/texlive/2016basic/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1136768653 1324 c910af8c371558dc20f2d7822f66fe64 ""
   "/usr/local/texlive/2016basic/texmf-dist/fonts/tfm/public/cm/cmmi10.tfm" 1136768653 1528 abec98dbc43e172678c11b3b9031252a ""
@@ -65,17 +65,17 @@
   "/usr/local/texlive/2016basic/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1475703155 323200 18d86931a9007c49810a5281688babb0 ""
   "/usr/local/texlive/2016basic/texmf-var/web2c/pdftex/pdflatex.fmt" 1475615408 2502199 00048fad8f68064077119b3f5725c276 ""
   "/usr/local/texlive/2016basic/texmf.cnf" 1463981856 628 02e65753891144204a0c89f7fa5761b2 ""
-  "lab1_refl.tex" 1478885280 4955 2232fc0bb267349cc1fb59c0c0ac1ee1 ""
+  "lab1_refl.tex" 1478887037 5100 2f9aed881fa9b9f016945c407d34e6cb ""
   "lab1_tech.tex" 1478880462 12651 6382ddd9c67764114361f0b4e528d284 ""
-  "lab2_refl.tex" 1478875195 4746 033d8875d90adc8439ef6aa70b5195c6 ""
+  "lab2_refl.tex" 1478886637 4759 f17bf83d2487016273fb31b0dd0a80d1 ""
   "lab2_tech.tex" 1478885255 15034 bea77d3e9ddb7b2b352c552eff0b6f1b ""
-  "main.aux" 1478885867 7813 5b4da72ad0678371501a9badd4f90551 ""
-  "main.bbl" 1478885866 5298 07e6f9e5625dd3d49db853ac3822ad60 "bibtex main"
-  "main.out" 1478885867 1775 348eb5583cc28c680bb17978150282c8 ""
+  "main.aux" 1478887042 7813 7a479be42203ea129a5552aa1882fd91 ""
+  "main.bbl" 1478887041 5298 f47737fa7cf28f529b9276cc017a33c1 "bibtex main"
+  "main.out" 1478887042 1775 348eb5583cc28c680bb17978150282c8 ""
   "main.tex" 1478884913 1889 98667b895818e1ac914fef8700cf63c1 ""
-  "overview.tex" 1478885422 790 83da4107c2a3b8f8e98b9cf9d0c25cf7 ""
+  "overview.tex" 1478886676 790 83da4107c2a3b8f8e98b9cf9d0c25cf7 ""
   (generated)
   "main.log"
-  "main.out"
-  "main.pdf"
   "main.aux"
+  "main.pdf"
+  "main.out"

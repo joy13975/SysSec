@@ -99,18 +99,18 @@ P.~Winter-Smith, ``{Windows FTP Server Format String Vulnerability},'' 2004.
   [Online]. Available: \url{http://www.securityfocus.com/archive/1/349255}
 \BIBentrySTDinterwordspacing
 
-\bibitem{alanpscan}
-\BIBentryALTinterwordspacing
-{Alan T. DeKok}, ``{PScan: A limited problem scanner for C source files},''
-  (Accessed on 11/11/2016). [Online]. Available:
-  \url{http://deployingradius.com/pscan/}
-\BIBentrySTDinterwordspacing
-
 \bibitem{burch_cert}
 \BIBentryALTinterwordspacing
 H.~Burch and L.~Whiting, ``{FIO30-C. Exclude user input from format strings},''
   2016. [Online]. Available:
   \url{https://www.securecoding.cert.org/confluence/display/c/FIO30-C.+Exclude+user+input+from+format+strings}
+\BIBentrySTDinterwordspacing
+
+\bibitem{alanpscan}
+\BIBentryALTinterwordspacing
+{Alan T. DeKok}, ``{PScan: A limited problem scanner for C source files},''
+  (Accessed on 11/11/2016). [Online]. Available:
+  \url{http://deployingradius.com/pscan/}
 \BIBentrySTDinterwordspacing
 
 \bibitem{Stackgua58}
