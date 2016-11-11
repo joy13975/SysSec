@@ -1,21 +1,28 @@
-\documentclass[12pt, onecolumn]{article}
+\documentclass[11pt, onecolumn]{article}
 
 \usepackage[margin=25mm]{geometry}
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{12pt}
+\setlength{\parskip}{8pt}
 
 %break url line in references
 \usepackage[hyphens]{url}
 \usepackage{hyperref}
 \hypersetup{breaklinks=true}
 \urlstyle{same}
+
+\usepackage{titlesec}
 \hyphenation{op-tical net-works semi-conduc-tor intro-duction high-light}
+\titlespacing{\section}{0pt}{\parskip}{0pt}
+\titlespacing{\subsection}{0pt}{\parskip}{0pt}
+\titlespacing{\subsubsection}{0pt}{\parskip}{0pt}
 
 %syntax highlighting
 \usepackage{cite}
 \usepackage{array}
 \usepackage{listings}
 \usepackage{color}
+\usepackage{listings}
+\usepackage{multicol}
 \lstset{language=C,
                 showstringspaces=false,
                 basicstyle=\ttfamily,
@@ -28,8 +35,8 @@
 %commands
 \newcommand\tab[1][1cm]{\hspace*{#1}}
 \newcommand\vgap{\vspace{0.2cm}}
-\newcommand\fakesection[1]{\textbf{#1}\newline}
-\usepackage{listings}
+\renewcommand{\lstlistingname}{Snippet}
+\newcommand\lstref[1]{\lstlistingname~\ref{#1}}
 
 \begin{document}
 
@@ -49,22 +56,17 @@ Overal contribution: cy13308 50\%, rz13310 50\%
 
 \section{Overview}
 \input{overview}
-\newpage
 
-\section{Lab 1: Format Strings}
-\subsection{Technical Report}
+\section{Format Strings: Technical Report}
 \input{lab1_tech}
 
-\newpage
-\subsection{Reflective Report}
+\section{Format Strings: Reflective Report}
 \input{lab1_refl}
-\newpage
 
-\section{Lab 2: Buffer Overflows}
-\subsection{Technical Report}
-\input{lab2_tech}
 \newpage
-\subsection{Reflective Report}
+\section{Buffer Overflows: Technical Report}
+\input{lab2_tech}
+\section{Buffer Overflows: Reflective Report}
 \input{lab2_refl}
 
 

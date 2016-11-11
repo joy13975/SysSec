@@ -1,7 +1,5 @@
 ARTICLE=main
 
-SRCS=overview.tex task1_tech.tex task2_tech.tex task1_refl.tex task2_refl.tex
-
 %.pdf: %.tex
 	latexmk -pdf $^
 

