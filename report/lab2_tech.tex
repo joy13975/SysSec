@@ -13,7 +13,7 @@ The first task of the second lab ask us to exploit the buffer overflow of functi
 To create this exploit our first goal was finding the offset in our input that overwrites \emph{bof}'s return address. This means finding the beginning of the overflown buffer in relation to the function's stack frame. By disassembling the \emph{stack-root} program we find in instruction 6 that this is \emph{-0x20(\%ebp)} or 32 byte before \emph{\%ebp}. This instruction sets the buffer address as an argument to \emph{strcpy()}. After these 32 bytes the stack frame contains 4 bytes of the saved \emph{\%ebp} followed by 4 bytes of the return address.
 
 \begin{minipage}{\linewidth}
-\begin{lstlisting}[caption={???},
+\begin{lstlisting}[caption={bof function disassembly},
 frame=single]
 08048484 <bof>:
 8048484:	55                   	push   %ebp
@@ -33,5 +33,37 @@ frame=single]
 We make an exploit that consists of 36 junk bytes 0xAA followed by the target address in little-endian followed by the 24 bytes of provided shellcode. For successful execution the target address needs to point at the beginning of the shellcode. We find this address by executing the \emph{stack-root} program in \emph{gdb} and setting the \emph{ret} instruction of \emph{bof} as a breakpoint. We take note of \emph{\%esp} which in our build is \emph{0xBFFFF4BC}. At that instruction \emph{\%esp} would point to the return address on the stack and if the shellcode is located just after that return address, a pointer to it would be 4 bytes higher than the obtained value - \emph{0xBFFFF4C0}. Using that as our target return address we successfully execute the exploit in \emph{gdb}. Since running the program outside \emph{gdb} the stack has a slight offset this exploit fails. To make our exploit resistant to stack offset variations we prepend the shellcode with 256 bytes of \emph{nop} instructions and increment the return address by 128 setting it to \emph{0xBFFFF540}. This gives the exploit operability when the stack offset is within 128 bytes of the stack offset under \emph{gdb}.
 
 \subsection{Defence mechanisms}
+\subsubsection{ASLR}
 The first defence technique to consider against this exploit is Address Space Layout Randomization or ASLR. This is an Operating System security feature implemented by the program loader that randomises the allocations for the heap, stack and loaded libraries. It does not prevent the actual buffer overflow but can mitigate it's exploitation potential. Since the crafted exploit needs to know the approximate location of the shellcode and that is located on the now randomised stack. With ASLR we can no longer obtain the stack location through seeing the memory maps of a single program instance because different executions allocate the stack at random location. By trying enough times it is possible to get successful exploitation if the random stack coincides with the observed stack location on creating the exploit. This is more likely to be feasible on 32-bit environments as they only offer 16 bits of randomisation which is significantly smaller than the available randomisation on 64-bit platforms. However there exist several methods to bypass this protection. A popular one is using the executable code and global variable space  which is the remaining known data fixed in the executable's address space. This is a very powerful technique but can be preventing by adopting compilation of position independent code (PIC). With PIC even the executable code's addresses can be randomised. This leaves the attacker only with finding an address leak as a viable attack on ASLR. If however such an information leak exists then it renders ASLR completely ineffective as the attacker can compute the exact offset of the leaked segment.\\
-\tab Stack Protector \cite{Stackgua58} \\
+\subsubsection {Stack Guard}
+When enabled the stack guard \emph{gcc} option generated the result in \lstref{lst:sg_out} regardless of wheather the \emph{-g} option was present or not. 
+\begin{lstlisting}[caption={Stack Gard enabled buffer overflow output},
+label={lst:sg_out},
+language=,
+frame=single]
+*** stack smashing detected ***: ./stack-stprot terminated
+Segmentation fault (core dumped)
+\end{lstlisting}
+By looking at function disassembly with Stack Guard enabled we observe that the method consists of additional prologue and epilogue code in function generation. The prologue copies a random value called canary from protected memory and stores it between the function's local variable stack space and the saved base pointer. If a buffer overflow then occurs in this function then it must overwrite the canary before the saved return address. The epilogue tests if the canary is different than the initial value before reaching a \emph{ret} instruction. If a change has occurred  a dynamically linked handler is called. This handler evidently generates the output in \lstref{lst_sg_out} and terminates execution. This defence also does not prevent the overflow it only detects and attempts to mitigate the severity of the threat.\\
+While troublesome for straightforward exploitation the weakness of this method is in the fact that the canary does not protect the local stack space variables and is only checked on function exit. Thus code between the occurrence of the overflow and the function return can be abused. As an example the function in \lstref{lst:sg_example} can be exploited by using the \emph{tmp\_key} overflow to modify the \emph{data} pointer. The second string copy could then write data to arbitrary memory locations. An exploit can either start from the return address without modifying the canary or it can modify the pointer to the dynamically linked stack thrashing handler. G. Richarte\cite{Stackgua58} explores similar techniques for circumventing Stack Guard type protections.
+
+\begin{lstlisting}[caption={Stack Gard vulnerable function},
+label={lst:sg_example},
+language=C,
+frame=single]
+void vuln(char* name,char* val)
+{
+    char *data = malloc(strlen(val)+1);
+    char tmp_key[24];
+    
+    strcpy(tmp_key,name);
+    
+    strcpy(data,val);
+    
+    //do work e.g. build dictionary entry
+
+    return;
+}
+\end{lstlisting}
+\subsubsection { Non-Executable Stack }
+When compiled with default option of non-executable stack region the memory pages allocated for stack space are set without execute permissions which means that an exception is generated if the CPU tries to read code from those memory locations. Running the exploit with this feature causes it to generate a Segmentation Fault. This is yet another mitigation technique. It is also easy to circumvent since stack data is still under attacker control and the exploit would just need to use portions of the executable's code segment. The attack can be identical to the one discussed against non-PIE executables with ASLR. \\
