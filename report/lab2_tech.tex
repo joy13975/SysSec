@@ -67,3 +67,4 @@ void vuln(char* name,char* val)
 \end{lstlisting}
 \subsubsection { Non-Executable Stack }
 When compiled with default option of non-executable stack region the memory pages allocated for stack space are set without execute permissions which means that an exception is generated if the CPU tries to read code from those memory locations. Running the exploit with this feature causes it to generate a Segmentation Fault. This is yet another mitigation technique. It is also easy to circumvent since stack data is still under attacker control and the exploit would just need to use portions of the executable's code segment. The attack can be identical to the one discussed against non-PIE executables with ASLR. \\
+\newpage

