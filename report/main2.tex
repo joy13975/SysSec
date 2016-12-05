@@ -1,0 +1,82 @@
+\documentclass[11pt, onecolumn]{article}
+
+\usepackage[margin=25mm]{geometry}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+
+%break url line in references
+\usepackage[hyphens]{url}
+\usepackage{hyperref}
+\hypersetup{breaklinks=true}
+\urlstyle{same}
+
+\usepackage{titlesec}
+\hyphenation{op-tical net-works semi-conduc-tor intro-duction high-light}
+\titlespacing{\section}{0pt}{\parskip}{0pt}
+\titlespacing{\subsection}{0pt}{\parskip}{0pt}
+\titlespacing{\subsubsection}{0pt}{\parskip}{0pt}
+
+%syntax highlighting
+\usepackage{cite}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{listings}
+\usepackage{multicol}
+\lstset{language=C,
+                showstringspaces=false,
+                basicstyle=\ttfamily,
+                keywordstyle=\color{blue}\ttfamily,
+                stringstyle=\color{red}\ttfamily,
+                commentstyle=\color{green}\ttfamily,
+                morecomment=[l][\color{magenta}]{\#}
+}
+
+%commands
+\newcommand\tab[1][1cm]{\hspace*{#1}}
+\newcommand\vgap{\vspace{0.2cm}}
+\renewcommand{\lstlistingname}{Snippet}
+\newcommand\lstref[1]{\lstlistingname~\ref{#1}}
+
+\begin{document}
+
+COMSM1500 (Systems Security)\\
+Coursework 2\\
+\\
+Students: cy13308 and rz13310 \\
+\\
+Contribution: \\
+\tab[1cm] cy13308: description pending\\
+\tab[1cm] rz13310: description pending
+\\
+\\
+Overal contribution: cy13308 50\%, rz13310 50\%
+\newpage
+
+
+\section{Overview}
+\input{overview2}
+
+\newpage
+\section{Network Attacks: Technical Report}
+\input{lab3_tech}
+
+\newpage
+\section{Network Attacks: Reflective Report}
+\input{lab3_refl}
+
+\newpage
+\section{SQL injection: Technical Report}
+\input{lab4_tech}
+
+\newpage
+\section{SQL injection: Reflective Report}
+\input{lab4_refl}
+
+
+\newpage
+\bibliography{refs2.bib}{}
+\bibliographystyle{IEEEtran}
+\end{document}
+
+
