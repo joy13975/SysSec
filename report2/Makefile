@@ -1,9 +1,10 @@
 ARTICLE=main
+TEX=$(wildcard ./*.tex)
 
-%.pdf: %.tex
-	latexmk -pdf $^
+%.pdf: $(TEX)
+	latexmk -pdf ${@:.pdf=.tex}
 
-all: *.tex $(ARTICLE).pdf
+all: $(ARTICLE).pdf
 
 close_pdf:
 	close_window Preview $(ARTICLE).pdf

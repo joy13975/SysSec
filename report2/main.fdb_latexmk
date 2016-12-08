@@ -1,12 +1,13 @@
 # Fdb version 3
-["bibtex main"] 1481134650 "main.aux" "main.bbl" "main" 1481134651
+["bibtex main"] 1481203374 "main.aux" "main.bbl" "main" 1481203388
   "/usr/local/texlive/2016basic/texmf-dist/bibtex/bst/IEEEtran/IEEEtran.bst" 1440712899 57748 7c8250ecf02814ce6ddc0cdbb63df1dd ""
-  "main.aux" 1481134651 1204 6ca0b918c3eb88aae2b0bd761155b9e0 ""
+  "main.aux" 1481203388 1204 6ca0b918c3eb88aae2b0bd761155b9e0 ""
   "main.bcf" 0 -1 0 ""
   "refs.bib" 1481134299 0 d41d8cd98f00b204e9800998ecf8427e ""
   (generated)
   "main.bbl"
-["pdflatex"] 1481134650 "main.tex" "main.pdf" "main" 1481134651
+  "main.blg"
+["pdflatex"] 1481203388 "main.tex" "main.pdf" "main" 1481203388
   "/usr/local/texlive/2016basic/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1136768653 1324 c910af8c371558dc20f2d7822f66fe64 ""
   "/usr/local/texlive/2016basic/texmf-dist/fonts/tfm/public/cm/cmr10.tfm" 1136768653 1296 45809c5a464d5f32c8f98ba97c1bb47f ""
   "/usr/local/texlive/2016basic/texmf-dist/fonts/tfm/public/cm/cmr12.tfm" 1136768653 1288 655e228510b4c2a1abe905c368440826 ""
@@ -51,13 +52,13 @@
   "lab3_tech.tex" 1481134299 0 d41d8cd98f00b204e9800998ecf8427e ""
   "lab4_refl.tex" 1481134299 0 d41d8cd98f00b204e9800998ecf8427e ""
   "lab4_tech.tex" 1481134299 0 d41d8cd98f00b204e9800998ecf8427e ""
-  "main.aux" 1481134651 1204 6ca0b918c3eb88aae2b0bd761155b9e0 ""
-  "main.bbl" 1481134650 877 628a2a8c68e066122d1514411e0b8455 "bibtex main"
-  "main.out" 1481134651 313 6d3de4808b64f9e4960b279e4166e753 ""
-  "main.tex" 1481134629 1786 3bf23a89f0f04451954b4dee7a33e507 ""
-  "overview.tex" 1481134299 0 d41d8cd98f00b204e9800998ecf8427e ""
+  "main.aux" 1481203388 1204 6ca0b918c3eb88aae2b0bd761155b9e0 ""
+  "main.bbl" 1481203374 877 628a2a8c68e066122d1514411e0b8455 "bibtex main"
+  "main.out" 1481203388 313 6d3de4808b64f9e4960b279e4166e753 ""
+  "main.tex" 1481202935 1855 8e2b035d6e2f5d0388c4baf532af6848 ""
+  "overview.tex" 1481203386 792 699da3a3b7be17162a8157e0573fd72a ""
   (generated)
-  "main.log"
   "main.pdf"
-  "main.aux"
   "main.out"
+  "main.aux"
+  "main.log"
