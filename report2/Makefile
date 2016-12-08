@@ -13,7 +13,7 @@ open: $(ARTICLE).pdf close_pdf
 	open $<
 
 open2: open
-	preview_at_page 7
+	preview_at_page 8
 
 fresh: clean open
 

