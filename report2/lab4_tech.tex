@@ -1,7 +1,7 @@
 \subsection{Context} \label{l4_ctx}
 SQL injection is very similar to the format string vulnerability in that the user's input is mistakenly interpreted as code. In this case, data submitted by the user of a website is directly inserted into a string literal as the fields of an SQL statement, exposing it to malicious manipulation.
 
-For a much oversimplified example, suppose a user attempts to sign into a website using a login form that results in two variables: \emph{\$usr} and \emph{\$pwd}. The user could enter any string of characters into the login form and the strings would be faithfully passed to the server's php script. Before SQL injection was widely known, the php script might look like the following:
+For a much oversimplified example, suppose a user attempts to sign into a website using a login form that results in two variables: \emph{\$usr} and \emph{\$pwd}. The user could enter any string of characters into the login form and the strings would be faithfully passed to the server's PHP script. Before SQL injection was widely known, the PHP script might look like the following:
 
 \begin{minipage}{\linewidth}
 \begin{lstlisting}[caption={Vulnerable SQL statement construction},
@@ -45,7 +45,7 @@ AND password = '' OR '1' == '1'"
 
 The above query in fact asks the database to "find the user ID whose username is 'admin' and \emph{either} (1) their password is empty \emph{or} (2) one is equal to one". Obviously one is always equal to one, so the query simply logs the user in as admin without the password check. This is a simple example of an SQL injection - data from the user being interpreted as part of a valid SQL statement, resulting in unpredicted and often malicious behaviour. SQL injections can also be used to gain confidential information from the database, or to find another vulnerability to attack. In reality, there are several obstacles when executing such attack. More on realistic circumstances and defences will be discussed in Task 3 and the following reflective report.
 
-In this lab we focus on the file /var/www/SQL/Collabtive/include/class.user.php, which is responsible for querying the database and checking the password when a user attempts a login. In Tasks 1 and 2, the \emph{magic\_quotes\_gpc} option is turned off in the php.ini file for illustration purposes. This prevents php from automatically escaping character sequences in variables received from website forms. Note that in the following code snippets, if the \emph{\$user} or the \emph{\$pass} variables are directly set, it actually means entering them through the web login form.
+In this lab we focus on the file /var/www/SQL/Collabtive/include/class.user.php, which is responsible for querying the database and checking the password when a user attempts a login. In Tasks 1 and 2, the \emph{magic\_quotes\_gpc} option is turned off in the php.ini file for illustration purposes. This prevents PHP from automatically escaping character sequences in variables received from website forms. Note that in the following code snippets, a one-line assignment to a variable actually denotes entering the string value through the web login form. Since SQL implementations vary in syntax and possibly escaping conventions, these will not be covered here.
 
 \subsection{Task 1 - Injection on the login form} \label{l4_t1}
 \subsubsection{Part 1 - Bypassing hashed password} \label{l4_t1p1}
@@ -112,15 +112,15 @@ WHERE name = 'admin'; #"
 \end{lstlisting}
 \end{minipage}
 
-This fails, because the php script calls \emph{mysql\_query()}, which executes only the first query. However, if the php script had called \emph{mysqli::multi\_query()}, then this injection could work.
+This fails, because the PHP script calls \emph{mysql\_query()}, which executes only the first query. However, if the PHP script had called \emph{mysqli::multi\_query()}, then this injection could work.
 
 \subsection{Task 2 - Injection on UPDATE}
 \subsubsection{Part 1 - Change Bob's email} \label{l4_t2p1}
-In this subtask, we first compromise Peter's account using the same attack as in Section \ref{l4_t1p1}, and navigate to the Edit User page (end of URL is "manageuser.php?action=editform\&id=5"). This edit page has many text fields. By examining the php script, we see that all text fields had their contents escaped using \emph{mysql\_real\_escape\_string()}, except the company field. This means we can inject some SQL into the company field, which is part of an UPDATE statement:
+In this subtask, we first compromise Peter's account using the same attack as in Task 1.1, and navigate to the Edit User page (end of URL is "manageuser.php?action=editform\&id=5"). This edit page has many text fields. By examining the PHP script, we see that all text fields had their contents escaped using \emph{mysql\_real\_escape\_string()}, except the company field. This means we can inject some SQL into the company field, which is part of an UPDATE statement:
 
 \begin{minipage}{\linewidth}
 \begin{lstlisting}[caption={UPDATE statement from the edit form},
-label={lst:l4_t1p2_updq},
+label={lst:l4_t2p1_updq},
 frame=single]
 "UPDATE user SET name='$name',email='$email',
 tel1='$tel1', tel2='$tel2',company='$company',
@@ -132,21 +132,21 @@ WHERE ID = $id"
 \end{lstlisting}
 \end{minipage}
 
-Using the same logic as in Section \ref{l4_t1p1}, we can set Bob's email by injection a new search criteria and ignore the rest of the query:
+Using the same logic as in Task 1.1, we can set Bob's email by injection a new search criteria and ignore the rest of the query:
 
 \begin{minipage}{\linewidth}
 \begin{lstlisting}[caption={UPDATE statement redirection},
-label={lst:l4_t1p2_compatk},
+label={lst:l4_t2p1_compatk},
 frame=single]
 $company = "' WHERE name = 'bob'#"
 \end{lstlisting}
 \end{minipage}
 
-With \lstref{lst:l4_t1p2_compatk}, we can redirect the UPDATE query to any user with a known name. In order to change Bob's email, we simply enter a new email in the email field. In addition, since the query also updates the name field, we must enter Bob's name instead.
+With \lstref{lst:l4_t2p1_compatk}, we can redirect the UPDATE query to any user with a known name. In order to change Bob's email, we simply enter a new email in the email field. In addition, since the query also updates the name field, we must enter Bob's name instead.
 
 \begin{minipage}{\linewidth}
 \begin{lstlisting}[caption={Email overwrite expansion},
-label={lst:l4_t1p2_compatkres},
+label={lst:l4_t2p1_compatkres},
 frame=single]
 "UPDATE user SET name='bob',email='peter@evil.com',tel1='', tel2='',
 company='' WHERE name = 'bob'#',
@@ -158,11 +158,11 @@ country='',tags='',locale='',rate='0' WHERE ID = 5"
 \subsubsection{Part 2 - Change Bob's password}
 Changing Bob's password is less straightforward as the password itself is stored as a hash. In order to give Bob's password a new value, we must first encode the new password using SHA-1. If the new password is "peter", then the hash would be "4b8373d016f277527198385ba72fda0feb5da015".
 
-After obtaining the new password hash, we apply an injection similar to Section \ref{l4_t2p1}. Instead of putting the hash in the actual password fields, we embed the value pair in the injection. This is because in order for the redirection to work, the real search criteria (WHERE ID = 5) must be commented out. Doing so comes with a price of having to comment out all value pairs before the real search critera up to our new, fake search criteria (name = 'bob'). We therefore arrive at \lstref{lst:l4_t1p2_pwdatk} and hence \lstref{lst:l4_t1p2_pwdatkres}.
+After obtaining the new password hash, we apply an injection similar to Task 2.1. Instead of putting the hash in the actual password fields, we embed the value pair in the injection. This is because in order for the redirection to work, the real search criteria (WHERE ID = 5) must be commented out. Doing so comes with a price of having to comment out all value pairs before the real search critera up to our new, fake search criteria (name = 'bob'). We therefore arrive at \lstref{lst:l4_t2p2_pwdatk} and hence \lstref{lst:l4_t2p2_pwdatkres}.
 
 \begin{minipage}{\linewidth}
 \begin{lstlisting}[caption={Password overwrite injection},
-label={lst:l4_t1p2_pwdatk},
+label={lst:l4_t2p2_pwdatk},
 frame=single]
 $company = "', pass='4b8373d016f277527198385ba72fda0feb5da015'
                WHERE name = 'bob'#"
@@ -171,7 +171,7 @@ $company = "', pass='4b8373d016f277527198385ba72fda0feb5da015'
 
 \begin{minipage}{\linewidth}
 \begin{lstlisting}[caption={Password overwrite expansion},
-label={lst:l4_t1p2_pwdatkres},
+label={lst:l4_t2p2_pwdatkres},
 frame=single]
 "UPDATE user SET name='bob',email='peter@evil.com',tel1='',tel2='',
 company='', pass='4b8373d016f277527198385ba72fda0feb5da015'
@@ -182,3 +182,74 @@ state='',country='',tags='',locale='',rate='0' WHERE ID = 5"
 \end{minipage}
 
 \subsection{Task 3 - Countermeasures}
+\subsubsection{Part 1 - magic\_quotes\_gpc}
+Magic quotes are a string preprocessing utility in PHP. It sanitizes and escapes GET, POST, COOKIE and ENV data before making it available to the script so as to prevent data corruption such as SQL injection. However, the variation of query syntaxes between SQL implementations means that this method cannot be fully accurate. It is therefore deprecated as of PHP 5.3.0 and scheduled for removal in PHP 6.0 \cite{Group2009}. When magic quotes are turned on, the injection from Task1.1 fails and expands into a normal query as in \lstref{lst:l4_t3p1_mq}. In the expanded string, there is an extra backslash ('\textbackslash') in the middle of our injection, which escapes the crucial single quote.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Escaped Task 1.1 injection expansion},
+label={lst:l4_t3p1_mq},
+frame=single]
+"SELECT ID,name,locale,lastlogin,gender
+FROM user WHERE (name = 'admin\' ); #'
+OR email = 'admin\' ); #')
+AND pass = 'da39a3ee5e6b4b0d3255bfef95601890afd80709'"
+\end{lstlisting}
+\end{minipage}
+
+\subsubsection{Part 2 - mysql\_real\_escape\_string}
+The \emph{mysql\_real\_escape\_string()} function escapes a given string according to the character set provided by the current MySQL connection. This means that multi-byte characters will be escaped appropriately. In contrast, the \emph{mysql\_escape\_string()} function treats the input string as raw bytes and escapes each byte regardless of character set. For the injection performed in Task 2.1, both functions would have the same effect as turning on magic quotes - backslashes are inserted before each single quote, rendering the injection strings ineffective:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Escaped Task2.1 injection expansion},
+label={lst:l4_t3p2_compatkres},
+frame=single]
+"UPDATE user SET name='bob',email='peter@evil.com',tel1='', tel2='',
+company='\' WHERE name = \'bob\'#',
+zip='',gender='',url='',adress='',adress2='',state='',
+country='',tags='',locale='',rate='0' WHERE ID = 5"
+\end{lstlisting}
+\end{minipage}
+
+\subsubsection{Part 3 - Prepared statements}
+Prepared (parameterized) statements are a way to separate SQL statement "code" from data. It works by firstly sending the "code" part of the SQL statement to the database server, which is essentially the SQL statement with placefolders in the data fields. The server would compile this statement "template" and possibly cache it. When input arrives from the user at some later time, the web server commands the database server to execute the cached and pre-compiled statement template with user data as parameters. This way, user input can never contaminate the "code" part of the SQL statement. However, this still requires careful usage. Specifically, no user data should be involved in constructing the statement template itself. \lstref{lst:l4_t3p3_ps} shows the prepared statement implementation of the login function:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Prepared statement implementation of the login function},
+label={lst:l4_t3p3_ps},
+frame=single]
+// set up connection to DB
+$conn = new mysqli('localhost',
+                    'root',
+                    'seedubuntu',
+                    'sql_collabtive_db');
+
+// prepare statement template
+$stmt = $conn->prepare(
+    "SELECT ID,name,locale,lastlogin,gender
+    FROM user WHERE (name = ? OR email = ?)
+    AND pass = ?");
+
+// assign parameters to the compiled statement
+$stmt->bind_param("sss", $user, $user, $pass);
+$stmt->execute();
+
+// obtain result
+$stmt->bind_result($ID_res,
+                   $name_res,
+                   $locale_res,
+                   $lastlogin_res,
+                   $gender_res);
+while ($stmt->fetch()) {}
+$stmt->close();
+
+// reconstruct the result array
+$chk = array
+(
+    "ID" => $ID_res,
+    "name" => $name_res,
+    "locale" => $locale_res,
+    "lastlogin" => $lastlogin_res,
+    "gender" => $gender_res
+);
+\end{lstlisting}
+\end{minipage}
