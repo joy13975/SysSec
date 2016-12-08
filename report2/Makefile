@@ -12,6 +12,9 @@ close_pdf:
 open: $(ARTICLE).pdf close_pdf
 	open $<
 
+open2: open
+	preview_at_page 7
+
 fresh: clean open
 
 .PHONY: clean
