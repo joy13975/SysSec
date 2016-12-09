@@ -1,1 +1,25 @@
-Fortunately, SQL injection is a solved problem.
+Examples of SQL injection were first publicly discussed in 1998 by Jeff Forristal \cite{phrack98}. Back then, his attempt at neutralising malicious input strings was to manually escape certain characters, which is obviously unreliable in hindsight. He pointed out that although strings could be sanitized, numeric values could not. Later, classic SQL injection developed into more advance forms such as the inference injection, whereby conditional constructs are used to infer information about the database. Compunded attacks incorporating SQL injection with DDoS, DNS Hijacking, and Cross-Site Scripting, were also carried out in several instances.
+
+While some claim that SQL injection is a long solved problem (using prepared statements, as of 2016), its category remains as the most critical web security risk since 2010 according to OWASP \cite{Owasp2013}. Indeed, the attacks carried out in this report will fail when applied to any real, modern website. This is thanks to the easily adoptable countermeasures discussed in Section \ref{l4_t3}. There are only so few steps the programmer needs to take to protect against SQL injection, which are namely: using prepared statements, ensuring no tainted data can slip into any database query, and setting up proper permissions in the DBMS.
+
+However, the fact that SQL injection still exists after 17 years since its discovery implies that there is a more fundamental problem. In fact, prepared statements already existed in 1999, albeit its original purpose being to speed up static queries \cite{pgPrepStm99}. There are many possible reasons that not all SQL statements are parameterized today. The first is education. Since writing a simple data-mixed string query is shorter and easier, it is often the first method taught to programmers who seek to learn SQL. The simple method works, so why bother reading more about it? In the same vein, those who learn from very outdated texts could also be unaware of the injection vulnerability. The second is convenience over importance of data. In the early stage of a development cycle, the data invovled may be treated as not sufficiently important to warrant verbose code that provides security. Similarly, rushed development and premature release of software products could lead to unpatched "convenience over security" codes in general. One last example (these are non-exclusive) is that prepared statements are often DBMS-specific. Agnosticism and portability should not outweight security but it depends on the developer's view.
+
+For mitigating the more fundamental problems of SQL injection, trivial techniques such as code reviews and a bar on the use of any data-mixed string queries in production code can work. On the other hand, prepared statement calls could also be standardised across DBMSes such that there would be no portability issue. Further, there is no obvious reason why prepared statements cannot be made less verbose. For an imaginary example, a standardised implementation could look like \lstref{lst:l4_ref_img}. This, in contrast, is much shorter than \lstref{lst:l4_t3p3_ps}. It is not difficult to create a wrapper that reduces the verbosity of prepared statements. With this simplification in place, there is little to no incentive in using the legacy, data-mixed query method.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Simpler prepared statements},
+label={lst:l4_ref_img},
+frame=single]
+// compile statement template with standard connection
+$stmt = $conn->prepare(
+    "SELECT ID,name,locale,lastlogin,gender
+    FROM user WHERE (name = ? OR email = ?)
+    AND pass = ?");
+
+// assign parameters to a statement which might be executed
+// multiple times
+$bound_stmt = $stmt->bind_param("sss", $user, $user, $pass);
+
+$chk = $bound_stmt->execute()->to_array();
+\end{lstlisting}
+\end{minipage}
